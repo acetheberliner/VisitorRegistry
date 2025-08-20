@@ -45,6 +45,8 @@ namespace Template.Web
                 options.LogoutPath = "/Login/Logout";
             });
 
+            services.AddSignalR();
+
             var builder = services.AddMvc()
                 .AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
                 .AddDataAnnotationsLocalization(options =>
@@ -109,6 +111,9 @@ namespace Template.Web
 
             app.UseEndpoints(endpoints =>
             {
+                // ROUTING PER HUB VISITATORI
+                endpoints.MapHub<VisitorHub>("/visitorHub");
+
                 // ROUTING PER HUB
                 endpoints.MapHub<TemplateHub>("/templateHub");
 
