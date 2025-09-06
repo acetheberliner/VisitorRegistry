@@ -12,7 +12,6 @@ using System.Linq;
 using Template.Services;
 using Template.Web.Infrastructure;
 using Template.Web.SignalR.Hubs;
-using VisitorRegistry.Infrastructure.Data;
 
 namespace Template.Web
 {
@@ -126,6 +125,8 @@ namespace Template.Web
 
                 // (Facoltativo) Route di fallback per login
                 endpoints.MapControllerRoute("default", "{controller=Login}/{action=Login}");
+
+                endpoints.MapHub<VisitorHub>("/visitorHub");
             });
         }
     }
