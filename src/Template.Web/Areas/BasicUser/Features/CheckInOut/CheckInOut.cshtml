@@ -1,26 +1,18 @@
 @page
 @model Template.Web.Areas.BasicUser.Features.CheckInOut.CheckInOutModel
+@{
+    Layout = null; // full screen
+}
 
-<h2>Registro Visitatori</h2>
-
+<h2>Benvenuto!</h2>
 <form method="post">
-    <label>Nome Completo:</label>
-    <input asp-for="Form.FullName" required /><br />
-
-    <label>Email:</label>
-    <input asp-for="Form.Email" type="email" required /><br />
-
-    <label>Motivo Visita:</label>
-    <input asp-for="Form.Reason" required /><br />
-
-    <button type="submit">Invia</button>
+    <input asp-for="FullName" placeholder="Nome completo" required />
+    <input asp-for="Email" placeholder="Email" required />
+    <input asp-for="Reason" placeholder="Motivo visita" required />
+    <button type="submit">Entra/Esci</button>
 </form>
 
-@if (Model.IsCheckOut)
+@if (Model.Message != null)
 {
-    <p>Grazie per la visita! Il tuo checkout è stato registrato.</p>
-}
-else if (Model.IsCheckIn)
-{
-    <p>Benvenuto! Il tuo check-in è stato registrato.</p>
+    <p>@Model.Message</p>
 }

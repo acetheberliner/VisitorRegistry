@@ -5,43 +5,47 @@ using System.Linq;
 using VisitorRegistry.Infrastructure.Data;
 using VisitorRegistry.Infrastructure.Entities;
 using System;
+using System.Collections.Generic;
 
 namespace Template.Web.Areas.BasicUser.Features.CheckInOut // <- questo deve combaciare
 {
     public class CheckInOutModel : PageModel
     {
-        private readonly VisitorDbContext _db;
-
-        public CheckInOutModel(VisitorDbContext db)
-        {
-            _db = db;
-        }
+        [BindProperty]
+        public string FullName { get; set; }
 
         [BindProperty]
-        public Visitor Form { get; set; }
+        public string Email { get; set; }
 
-        public bool IsCheckIn { get; set; }
-        public bool IsCheckOut { get; set; }
+        [BindProperty]
+        public string Reason { get; set; }
 
-        public async Task<IActionResult> OnPostAsync()
+        public string Message { get; set; }
+
+        private static Dictionary<string, DateTime?> _visits = new(); // simulazione DB in memoria
+
+        public void OnGet() {}
+
+        public void OnPost()
         {
-            var existing = _db.Visitors.FirstOrDefault(v => v.Email == Form.Email && v.CheckOutTime == null);
-
-            if (existing == null)
+            if (_visits.ContainsKey(Email) && _visits[Email] == null)
             {
-                Form.CheckInTime = DateTime.Now;
-                _db.Visitors.Add(Form);
-                await _db.SaveChangesAsync();
-                IsCheckIn = true;
+                // già fatto check-out, nuova visita
+                _visits[Email] = DateTime.Now;
+                Message = "Benvenuto di nuovo! Check-in effettuato.";
+            }
+            else if (_visits.ContainsKey(Email))
+            {
+                _visits[Email] = null;
+                Message = "Check-out effettuato.";
             }
             else
             {
-                existing.CheckOutTime = DateTime.Now;
-                await _db.SaveChangesAsync();
-                IsCheckOut = true;
+                _visits[Email] = DateTime.Now;
+                Message = "Check-in effettuato.";
             }
 
-            return Page();
+            // TODO: broadcast via SignalR
         }
     }
 }

@@ -1,0 +1,49 @@
+@page
+@model Template.Web.Areas.Admin.Pages.Dashboard.IndexModel
+
+@{
+    ViewData["Title"] = "Registro visitatori (live)";
+}
+
+<h2>Visitatori in struttura</h2>
+
+<table id="visitors-table" border="1" style="width:100%; text-align:left;">
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Email</th>
+            <th>Motivo</th>
+            <th>Check-in</th>
+            <th>Check-out</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var visitor in Model.Visitors)
+        {
+            <tr>
+                <td>@visitor.FullName</td>
+                <td>@visitor.Email</td>
+                <td>@visitor.Reason</td>
+                <td>@visitor.CheckInTime.ToString("HH:mm")</td>
+                <td>@(visitor.CheckOutTime.HasValue ? visitor.CheckOutTime?.ToString("HH:mm") : "—")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- SignalR JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/visitorHub")
+        .build();
+
+    connection.on("ReceiveVisitorUpdate", () => {
+        console.log("Ricevuto aggiornamento dal visitorHub.");
+        location.reload(); // Può essere migliorato con fetch later
+    });
+
+    connection.start()
+        .then(() => console.log("SignalR connesso alla dashboard"))
+        .catch(err => console.error(err));
+</script>

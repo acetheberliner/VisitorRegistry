@@ -1,5 +1,4 @@
-﻿//using Template.Web.Hubs;
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Razor;
@@ -13,13 +12,13 @@ using System.Linq;
 using Template.Services;
 using Template.Web.Infrastructure;
 using Template.Web.SignalR.Hubs;
+using VisitorRegistry.Infrastructure.Data;
 
 namespace Template.Web
 {
     public class Startup
     {
         public IConfiguration Configuration { get; }
-
         public IWebHostEnvironment Env { get; set; }
 
         public Startup(IConfiguration configuration, IWebHostEnvironment env)
@@ -31,13 +30,18 @@ namespace Template.Web
         public void ConfigureServices(IServiceCollection services)
         {
             services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
-
+            
             services.AddDbContext<TemplateDbContext>(options =>
             {
-                options.UseInMemoryDatabase(databaseName: "Template");
+                options.UseInMemoryDatabase("Template");
             });
 
-            // SERVICES FOR AUTHENTICATION
+            // services.AddDbContext<VisitorDbContext>(options =>
+            // {
+            //     options.UseSqlite("Data Source=visitors.db");
+            // });
+
+            // Authentication
             services.AddSession();
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
             {
@@ -45,12 +49,11 @@ namespace Template.Web
                 options.LogoutPath = "/Login/Logout";
             });
 
-            services.AddSignalR();
-
+            // MVC + Razor Pages + Localizzazione
             var builder = services.AddMvc()
                 .AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
                 .AddDataAnnotationsLocalization(options =>
-                {                        // Enable loading SharedResource for ModelLocalizer
+                {
                     options.DataAnnotationLocalizerProvider = (type, factory) =>
                         factory.Create(typeof(SharedResource));
                 });
@@ -74,35 +77,31 @@ namespace Template.Web
                 options.ViewLocationFormats.Add("/Views/Shared/{0}.cshtml");
             });
 
-            // SIGNALR FOR COLLABORATIVE PAGES
             services.AddSignalR();
+            services.AddRazorPages();
 
-            // CONTAINER FOR ALL EXTRA CUSTOM SERVICES
+            // Contenitore custom
             Container.RegisterTypes(services);
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            // Configure the HTTP request pipeline.
             if (!env.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
-
-                // Https redirection only in production
                 app.UseHsts();
                 app.UseHttpsRedirection();
             }
 
-            // Localization support if you want to
             app.UseRequestLocalization(SupportedCultures.CultureNames);
 
             app.UseRouting();
 
-            // Adding authentication to pipeline
             app.UseSession();
             app.UseAuthentication();
             app.UseAuthorization();
 
+            // Static files da node_modules + Areas
             var node_modules = new CompositePhysicalFileProvider(Directory.GetCurrentDirectory(), "node_modules");
             var areas = new CompositePhysicalFileProvider(Directory.GetCurrentDirectory(), "Areas");
             var compositeFp = new CustomCompositeFileProvider(env.WebRootFileProvider, node_modules, areas);
@@ -111,13 +110,21 @@ namespace Template.Web
 
             app.UseEndpoints(endpoints =>
             {
-                // ROUTING PER HUB VISITATORI
+                // SignalR Hubs
                 endpoints.MapHub<VisitorHub>("/visitorHub");
-
-                // ROUTING PER HUB
                 endpoints.MapHub<TemplateHub>("/templateHub");
 
-                endpoints.MapAreaControllerRoute("Example", "Example", "Example/{controller=Users}/{action=Index}/{id?}");
+                // Razor Pages support
+                endpoints.MapRazorPages();
+
+                // Redirect root -> dashboard admin
+                endpoints.MapGet("/", context =>
+                {
+                    context.Response.Redirect("/Admin/Dashboard");
+                    return System.Threading.Tasks.Task.CompletedTask;
+                });
+
+                // (Facoltativo) Route di fallback per login
                 endpoints.MapControllerRoute("default", "{controller=Login}/{action=Login}");
             });
         }
@@ -125,15 +132,7 @@ namespace Template.Web
 
     public static class SupportedCultures
     {
-        public readonly static string[] CultureNames;
-        public readonly static CultureInfo[] Cultures;
-
-        static SupportedCultures()
-        {
-            CultureNames = new[] { "it-it" };
-            Cultures = CultureNames.Select(c => new CultureInfo(c)).ToArray();
-
-            //NB: attenzione nel progetto a settare correttamente <NeutralLanguage>it-IT</NeutralLanguage>
-        }
+        public static readonly string[] CultureNames = new[] { "it-it" };
+        public static readonly CultureInfo[] Cultures = CultureNames.Select(c => new CultureInfo(c)).ToArray();
     }
 }

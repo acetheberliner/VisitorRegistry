@@ -10,7 +10,6 @@ namespace VisitorRegistry.Infrastructure.Entities
         public string Reason { get; set; }
         public DateTime CheckInTime { get; set; }
         public DateTime? CheckOutTime { get; set; }
-
-        public bool IsCheckedIn => CheckOutTime == null;
     }
+
 }
