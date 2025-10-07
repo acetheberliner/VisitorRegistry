@@ -55,7 +55,16 @@
             const CheckInTime = val(v,'CheckInTime','checkInTime');
             const CheckOutTime = val(v,'CheckOutTime','checkOutTime');
 
-            function fmt(d){ try{ return new Date(d).toLocaleString(); } catch(e){ return d ?? ''; } }
+            function fmt(d){
+                if(!d) return '';
+                try{
+                    const dt = new Date(d);
+                    if(isNaN(dt.getTime())) return '';
+                    return dt.toLocaleString();
+                }catch(e){
+                    return '';
+                }
+            }
 
             tr.innerHTML = `<td>${id}</td><td>${QrKey}</td><td>${Email}</td><td>${FirstName}</td><td>${LastName}</td><td>${fmt(CheckInTime)}</td><td>${fmt(CheckOutTime)}</td>`;
         }

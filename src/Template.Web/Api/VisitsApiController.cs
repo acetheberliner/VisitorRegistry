@@ -6,7 +6,7 @@ using Template.Services;
 
 namespace Template.Web.Api
 {
-    [Route("api/[controller]")]
+    [Route("api/visits")]
     [ApiController]
     [Authorize]
     public partial class VisitsApiController : ControllerBase
