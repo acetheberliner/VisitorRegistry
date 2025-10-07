@@ -1,5 +1,4 @@
-﻿//using Template.Web.Hubs;
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Razor;
@@ -19,7 +18,6 @@ namespace Template.Web
     public class Startup
     {
         public IConfiguration Configuration { get; }
-
         public IWebHostEnvironment Env { get; set; }
 
         public Startup(IConfiguration configuration, IWebHostEnvironment env)
@@ -43,7 +41,12 @@ namespace Template.Web
 
             services.AddDbContext<TemplateDbContext>(options => options.UseSqlite(sqlite));
 
-            // SERVICES FOR AUTHENTICATION
+            // services.AddDbContext<VisitorDbContext>(options =>
+            // {
+            //     options.UseSqlite("Data Source=visitors.db");
+            // });
+
+            // Authentication
             services.AddSession();
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
             {
@@ -51,10 +54,11 @@ namespace Template.Web
                 options.LogoutPath = "/Login/Logout";
             });
 
+            // MVC + Razor Pages + Localizzazione
             var builder = services.AddMvc()
                 .AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
                 .AddDataAnnotationsLocalization(options =>
-                {                        // Enable loading SharedResource for ModelLocalizer
+                {
                     options.DataAnnotationLocalizerProvider = (type, factory) =>
                         factory.Create(typeof(SharedResource));
                 });
@@ -78,10 +82,10 @@ namespace Template.Web
                 options.ViewLocationFormats.Add("/Views/Shared/{0}.cshtml");
             });
 
-            // SIGNALR FOR COLLABORATIVE PAGES
             services.AddSignalR();
+            services.AddRazorPages();
 
-            // CONTAINER FOR ALL EXTRA CUSTOM SERVICES
+            // Contenitore custom
             Container.RegisterTypes(services);
         }
 
@@ -106,22 +110,19 @@ namespace Template.Web
             if (!env.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
-
-                // Https redirection only in production
                 app.UseHsts();
                 app.UseHttpsRedirection();
             }
 
-            // Localization support if you want to
             app.UseRequestLocalization(SupportedCultures.CultureNames);
 
             app.UseRouting();
 
-            // Adding authentication to pipeline
             app.UseSession();
             app.UseAuthentication();
             app.UseAuthorization();
 
+            // Static files da node_modules + Areas
             var node_modules = new CompositePhysicalFileProvider(Directory.GetCurrentDirectory(), "node_modules");
             var areas = new CompositePhysicalFileProvider(Directory.GetCurrentDirectory(), "Areas");
             var compositeFp = new CustomCompositeFileProvider(env.WebRootFileProvider, node_modules, areas);
@@ -130,7 +131,8 @@ namespace Template.Web
 
             app.UseEndpoints(endpoints =>
             {
-                // ROUTING PER HUB
+                // SignalR Hubs
+                endpoints.MapHub<VisitorHub>("/visitorHub");
                 endpoints.MapHub<TemplateHub>("/templateHub");
 
                 endpoints.MapAreaControllerRoute("Example", "Example", "Example/{controller=Users}/{action=Index}/{id?}");
@@ -142,15 +144,7 @@ namespace Template.Web
 
     public static class SupportedCultures
     {
-        public readonly static string[] CultureNames;
-        public readonly static CultureInfo[] Cultures;
-
-        static SupportedCultures()
-        {
-            CultureNames = new[] { "it-it" };
-            Cultures = CultureNames.Select(c => new CultureInfo(c)).ToArray();
-
-            //NB: attenzione nel progetto a settare correttamente <NeutralLanguage>it-IT</NeutralLanguage>
-        }
+        public static readonly string[] CultureNames = new[] { "it-it" };
+        public static readonly CultureInfo[] Cultures = CultureNames.Select(c => new CultureInfo(c)).ToArray();
     }
 }

@@ -1,0 +1,42 @@
+@page
+@model Template.Web.Areas.BasicUser.Pages.CheckInOutModel
+@{
+    Layout = null; // full screen
+}
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <title>Accesso Visitatori</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" />
+</head>
+<body class="p-5">
+    <div class="container">
+        <h1 class="mb-4">Benvenuto!</h1>
+
+        <form method="post" class="mb-3">
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label">Nome Completo</label>
+                <input asp-for="FullName" class="form-control" required />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label">Email</label>
+                <input asp-for="Email" type="email" class="form-control" required />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Reason" class="form-label">Motivo della visita</label>
+                <input asp-for="Reason" class="form-control" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Entra / Esci</button>
+        </form>
+
+        @if (Model.Message != null)
+        {
+            <div class="alert alert-info">
+                @Model.Message
+            </div>
+        }
+    </div>
+</body>
+</html>
