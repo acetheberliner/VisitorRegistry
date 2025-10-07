@@ -1,0 +1,85 @@
+@{
+}
+<h2>Reception - Registro Visitatori (Realtime)</h2>
+<div>
+    <p>Questa pagina si connette al hub SignalR e mostra i nuovi check-in / check-out in tempo reale.</p>
+    <div id="status">Connecting...</div>
+    <table id="visits" class="table">
+        <thead>
+            <tr><th>Id</th><th>QrKey</th><th>Email</th><th>FirstName</th><th>LastName</th><th>CheckIn</th><th>CheckOut</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+@section scripts{
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
+    <script>
+        const statusEl = document.getElementById('status');
+        const tbody = document.querySelector('#visits tbody');
+
+        const conn = new signalR.HubConnectionBuilder().withUrl('/templateHub').build();
+        conn.on('NewVisit', v => {
+            addOrUpdateRow(v);
+        });
+        conn.on('UpdateVisit', v => {
+            addOrUpdateRow(v);
+        });
+
+        // attempt to populate from persisted storage immediately
+        loadExistingVisits();
+
+        conn.start().then(()=>{
+            statusEl.innerText = 'Connected';
+            conn.invoke('JoinGroup', '00000000-0000-0000-0000-000000000000');
+        }).catch(e=>{
+            statusEl.innerText = 'Conn error: '+e;
+            // still attempt to load persisted visits if SignalR fails
+            loadExistingVisits();
+        });
+
+        function val(obj, a, b){ return obj[a] ?? obj[b] ?? ''; }
+
+        function addOrUpdateRow(v){
+            let id = val(v,'Id','id') || val(v,'id','Id');
+            let tr = document.getElementById('v-'+id);
+            if(!tr){
+                tr = document.createElement('tr'); tr.id = 'v-'+id;
+                tbody.prepend(tr);
+            }
+
+            const QrKey = val(v,'QrKey','qrKey');
+            const Email = val(v,'Email','email');
+            const FirstName = val(v,'FirstName','firstName');
+            const LastName = val(v,'LastName','lastName');
+            const CheckInTime = val(v,'CheckInTime','checkInTime');
+            const CheckOutTime = val(v,'CheckOutTime','checkOutTime');
+
+            function fmt(d){ try{ return new Date(d).toLocaleString(); } catch(e){ return d ?? ''; } }
+
+            tr.innerHTML = `<td>${id}</td><td>${QrKey}</td><td>${Email}</td><td>${FirstName}</td><td>${LastName}</td><td>${fmt(CheckInTime)}</td><td>${fmt(CheckOutTime)}</td>`;
+        }
+
+        // Fetch persisted visits from the API and populate the table on load
+        async function loadExistingVisits(){
+            try{
+                const res = await fetch('/api/visits', { credentials: 'same-origin' });
+                if(!res.ok){
+                    console.warn('Could not load persisted visits', res.status);
+                    return;
+                }
+                const arr = await res.json();
+                console.debug('loadExistingVisits: fetched', arr && arr.length ? arr.length : 0, 'items');
+                if(Array.isArray(arr)){
+                    // assume server returns most-recent-first; ensure we render oldest first then prepend to keep insertion order
+                    // but addOrUpdateRow prepends rows, so iterate from last to first
+                    for(let i = arr.length - 1; i >= 0; i--){
+                        addOrUpdateRow(arr[i]);
+                    }
+                }
+            }catch(e){
+                console.error('Error loading persisted visits', e);
+            }
+        }
+    </script>
+}

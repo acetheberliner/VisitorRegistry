@@ -12,9 +12,10 @@ namespace Template.Services
 
         public TemplateDbContext(DbContextOptions<TemplateDbContext> options) : base(options)
         {
-            DataGenerator.InitializeUsers(this);
+            // Seeding is performed at application startup (Startup.Configure) after EnsureCreated()
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<Template.Services.Shared.VisitRecord> VisitRecords { get; set; }
     }
 }

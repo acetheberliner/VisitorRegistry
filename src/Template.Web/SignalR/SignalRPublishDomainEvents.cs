@@ -36,5 +36,15 @@ namespace Template.Web.SignalR
         {
             return GetTemplateGroup(e.IdGroup).NewMessage(e.IdUser, e.IdMessage);
         }
+
+        public Task When(NewVisitEvent e)
+        {
+            return GetTemplateGroup(e.IdGroup).NewVisit(e.VisitDto);
+        }
+
+        public Task When(UpdateVisitEvent e)
+        {
+            return GetTemplateGroup(e.IdGroup).UpdateVisit(e.VisitDto);
+        }
     }
 }

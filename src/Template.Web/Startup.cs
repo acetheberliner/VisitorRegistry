@@ -32,10 +32,16 @@ namespace Template.Web
         {
             services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
 
-            services.AddDbContext<TemplateDbContext>(options =>
+            // Configure DB: prefer SQLite file by default (persistent across restarts).
+            var sqlite = Configuration.GetConnectionString("Sqlite");
+            if (string.IsNullOrWhiteSpace(sqlite))
             {
-                options.UseInMemoryDatabase(databaseName: "Template");
-            });
+                // default file-based sqlite DB in the application folder (use ContentRootPath to make it absolute)
+                var dbPath = Path.Combine(Env.ContentRootPath ?? Directory.GetCurrentDirectory(), "visitorregistry.db");
+                sqlite = $"Data Source={dbPath}";
+            }
+
+            services.AddDbContext<TemplateDbContext>(options => options.UseSqlite(sqlite));
 
             // SERVICES FOR AUTHENTICATION
             services.AddSession();
@@ -81,6 +87,21 @@ namespace Template.Web
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            // Ensure DB created and seeded
+            using (var scope = app.ApplicationServices.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetService(typeof(TemplateDbContext)) as TemplateDbContext;
+                try
+                {
+                    db.Database.EnsureCreated();
+                    Template.Infrastructure.DataGenerator.InitializeUsers(db);
+                }
+                catch
+                {
+                    // ignore seeding errors for now
+                }
+            }
+
             // Configure the HTTP request pipeline.
             if (!env.IsDevelopment())
             {
@@ -113,7 +134,8 @@ namespace Template.Web
                 endpoints.MapHub<TemplateHub>("/templateHub");
 
                 endpoints.MapAreaControllerRoute("Example", "Example", "Example/{controller=Users}/{action=Index}/{id?}");
-                endpoints.MapControllerRoute("default", "{controller=Login}/{action=Login}");
+                endpoints.MapControllerRoute(name: "default", pattern: "{controller=Reception}/{action=Index}/{id?}");
+                endpoints.MapControllers();
             });
         }
     }

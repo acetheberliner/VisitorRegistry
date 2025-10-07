@@ -172,5 +172,40 @@ namespace Template.Services.Shared
                 NickName = user.NickName
             };
         }
+
+        public async Task<VisitByQrDTO> Query(VisitByQrQuery qry)
+        {
+            var v = await _dbContext.VisitRecords
+                .Where(x => x.QrKey == qry.QrKey)
+                .OrderByDescending(x => x.CheckInTime)
+                .FirstOrDefaultAsync();
+
+            if (v == null) return null;
+
+            return new VisitByQrDTO
+            {
+                Id = v.Id,
+                Email = v.Email,
+                FirstName = v.FirstName,
+                LastName = v.LastName,
+                CheckInTime = v.CheckInTime,
+                CheckOutTime = v.CheckOutTime
+            };
+        }
+    }
+
+    public class VisitByQrQuery
+    {
+        public string QrKey { get; set; }
+    }
+
+    public class VisitByQrDTO
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public DateTime CheckInTime { get; set; }
+        public DateTime? CheckOutTime { get; set; }
     }
 }

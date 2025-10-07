@@ -1,0 +1,18 @@
+@{
+    var keys = ViewBag.Keys as string[];
+    if (keys == null || keys.Length == 0)
+    {
+        keys = new string[] { "demo-qr", "main-entrance", "side-door" };
+    }
+}
+<h2>QR Preview</h2>
+<div>
+    @foreach(var k in keys)
+    {
+        <div style="display:inline-block;margin:16px;text-align:center">
+            <a href="/qr/generate?key=@k&debug=true" target="_blank"><img src="/qr/generate?key=@k" style="width:220px;height:220px;border:1px solid #ddd;padding:8px" alt="QR @k" /></a>
+            <div style="margin-top:6px;font-weight:600">@k</div>
+            <div style="font-size:12px;margin-top:6px"><a href="/qr/generate?key=@k&debug=true" target="_blank">open URL (debug)</a></div>
+        </div>
+    }
+</div>

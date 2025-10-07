@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Reception SignalR Test</title>
+    <style>body{font-family:Segoe UI,Arial;margin:20px}pre{background:#f6f6f6;padding:10px;border-radius:6px;max-height:60vh;overflow:auto}</style>
+</head>
+<body>
+    <h2>Reception SignalR Test Client</h2>
+    <p>Questo client si connette al hub `/templateHub`, si iscrive al gruppo globale (GUID vuoto) e mostra nuovi eventi.</p>
+
+    <div>
+        <label>Group Id (leave empty for global):</label>
+        <input id="groupId" style="width:350px" placeholder="00000000-0000-0000-0000-000000000000" />
+        <button id="joinBtn">Join Group</button>
+        <button id="leaveBtn">Leave Group</button>
+    </div>
+
+    <h3>Log</h3>
+    <pre id="log">(log vuoto)</pre>
+
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
+    <script>
+        const logEl = document.getElementById('log');
+        function appendLog(s){
+            if(logEl.innerText === '(log vuoto)') logEl.innerText = '';
+            logEl.innerText = new Date().toLocaleTimeString() + ' - ' + s + '\n' + logEl.innerText;
+        }
+
+        // create connection (no auth in this test; if hub requires auth it will fail)
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl('/templateHub')
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        connection.on('NewVisit', (visitDto) => {
+            appendLog('[NewVisit] ' + JSON.stringify(visitDto));
+        });
+
+        connection.on('UpdateVisit', (visitDto) => {
+            appendLog('[UpdateVisit] ' + JSON.stringify(visitDto));
+        });
+
+        connection.start().then(() => {
+            appendLog('SignalR connected');
+        }).catch(err => {
+            appendLog('Connection error: ' + err.toString());
+        });
+
+        document.getElementById('joinBtn').addEventListener('click', async () => {
+            const gid = document.getElementById('groupId').value || '00000000-0000-0000-0000-000000000000';
+            try{
+                await connection.invoke('JoinGroup', gid);
+                appendLog('Joined group ' + gid);
+            }catch(e){ appendLog('JoinGroup error: ' + e.toString()); }
+        });
+
+        document.getElementById('leaveBtn').addEventListener('click', async () => {
+            const gid = document.getElementById('groupId').value || '00000000-0000-0000-0000-000000000000';
+            try{
+                await connection.invoke('LeaveGroup', gid);
+                appendLog('Left group ' + gid);
+            }catch(e){ appendLog('LeaveGroup error: ' + e.toString()); }
+        });
+    </script>
+</body>
+</html>

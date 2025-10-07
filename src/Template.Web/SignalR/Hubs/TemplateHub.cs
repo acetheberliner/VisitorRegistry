@@ -6,6 +6,8 @@ namespace Template.Web.SignalR.Hubs
     public interface ITemplateClientEvent
     {
         public System.Threading.Tasks.Task NewMessage(Guid idUser, Guid idMessage);
+        public System.Threading.Tasks.Task NewVisit(object visitDto);
+        public System.Threading.Tasks.Task UpdateVisit(object visitDto);
     }
 
     [Microsoft.AspNetCore.Authorization.Authorize] // Makes the hub usable only by authenticated users
