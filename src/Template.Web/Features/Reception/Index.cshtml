@@ -4,9 +4,9 @@
 <div>
     <p>Questa pagina si connette al hub SignalR e mostra i nuovi check-in / check-out in tempo reale.</p>
     <div id="status">Connecting...</div>
-    <table id="visits" class="table">
+        <table id="visits" class="table">
         <thead>
-            <tr><th>Id</th><th>QrKey</th><th>Email</th><th>FirstName</th><th>LastName</th><th>CheckIn</th><th>CheckOut</th></tr>
+            <tr><th>Id</th><th>QrKey</th><th>Email</th><th>FirstName</th><th>LastName</th><th>CheckIn</th><th>CheckOut</th><th>Action</th></tr>
         </thead>
         <tbody></tbody>
     </table>
@@ -55,6 +55,11 @@
             const CheckInTime = val(v,'CheckInTime','checkInTime');
             const CheckOutTime = val(v,'CheckOutTime','checkOutTime');
 
+            function checkoutButton(id, checkedOut){
+                if(checkedOut) return '<button class="btn btn-sm btn-secondary" disabled>Checked out</button>';
+                return `<button class="btn btn-sm btn-primary" onclick="checkoutVisit('${id}', this)">Checkout</button>`;
+            }
+
             function fmt(d){
                 if(!d) return '';
                 try{
@@ -66,7 +71,26 @@
                 }
             }
 
-            tr.innerHTML = `<td>${id}</td><td>${QrKey}</td><td>${Email}</td><td>${FirstName}</td><td>${LastName}</td><td>${fmt(CheckInTime)}</td><td>${fmt(CheckOutTime)}</td>`;
+            tr.innerHTML = `<td>${id}</td><td>${QrKey}</td><td>${Email}</td><td>${FirstName}</td><td>${LastName}</td><td>${fmt(CheckInTime)}</td><td>${fmt(CheckOutTime)}</td><td>${checkoutButton(id, CheckOutTime)}</td>`;
+        }
+
+        // Checkout a visit by id
+        async function checkoutVisit(id, btnEl){
+            try{
+                btnEl.disabled = true;
+                btnEl.innerText = 'Checking out...';
+                const res = await fetch('/api/visits/'+id+'/checkout', { method: 'POST', credentials: 'same-origin' });
+                if(!res.ok){
+                    console.warn('Checkout failed', res.status);
+                    btnEl.disabled = false;
+                    btnEl.innerText = 'Checkout';
+                    return;
+                }
+                const updated = await res.json();
+                addOrUpdateRow(updated);
+            }catch(e){
+                console.error('Checkout error', e);
+            }
         }
 
         // Fetch persisted visits from the API and populate the table on load

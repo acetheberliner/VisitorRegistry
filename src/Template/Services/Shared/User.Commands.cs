@@ -26,6 +26,12 @@ namespace Template.Services.Shared
         public string AdditionalInfo { get; set; }
     }
 
+    public class CheckoutVisitCommand
+    {
+        // Id of the VisitRecord to checkout
+        public Guid Id { get; set; }
+    }
+
     public partial class SharedService
     {
         public async Task<Guid> Handle(AddOrUpdateUserCommand cmd)
@@ -105,6 +111,35 @@ namespace Template.Services.Shared
                 LastName = visit.LastName,
                 CheckInTime = visit.CheckInTime,
                 CheckOutTime = visit.CheckOutTime
+            };
+        }
+
+        /// <summary>
+        /// Checkout an existing visit by Id (set CheckOutTime to UTC now)
+        /// Returns the updated VisitByQrDTO or null if not found.
+        /// </summary>
+        public async Task<VisitByQrDTO> Handle(CheckoutVisitCommand cmd)
+        {
+            var existing = await _dbContext.VisitRecords
+                .Where(x => x.Id == cmd.Id)
+                .FirstOrDefaultAsync();
+
+            if (existing == null) return null;
+
+            if (existing.CheckOutTime == null)
+            {
+                existing.CheckOutTime = DateTime.UtcNow;
+                await _dbContext.SaveChangesAsync();
+            }
+
+            return new VisitByQrDTO
+            {
+                Id = existing.Id,
+                Email = existing.Email,
+                FirstName = existing.FirstName,
+                LastName = existing.LastName,
+                CheckInTime = existing.CheckInTime,
+                CheckOutTime = existing.CheckOutTime
             };
         }
     }
