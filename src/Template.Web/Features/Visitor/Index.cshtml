@@ -1,26 +1,117 @@
 @model Template.Web.Features.Visitor.VisitorFormModel
-<div class="container">
-    <h2>Check-in</h2>
-    <form method="post">
-        <input type="hidden" asp-for="QrKey" />
-        <div class="form-group">
-            <label>Email</label>
-            <input asp-for="Email" class="form-control" />
+
+<!-- Aggiunto: font e stili per allineamento grafico con Reception Index -->
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+    /* MATCH Reception: font + global bg */
+    body {
+        font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(90deg, #eef3f7 0%, #f7fbfd 100%);
+        color: #1f2937;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    .container-fluid { padding-top:1.6rem; padding-bottom:1.6rem; width:95%; }
+
+    /* Card system identical to Reception */
+    .card {
+        border-radius: 12px;
+        background: linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
+        box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+        border: 1px solid rgba(15,23,42,0.04);
+    }
+    .card .card-body { border-radius:10px; padding: 1.4rem; }
+
+    /* Form controls */
+    .form-label { color: #6b7280; font-size: .95rem; }
+    .form-control {
+        border-radius: 10px;
+        padding: .6rem .75rem;
+        border: 1px solid rgba(15,23,42,0.06);
+    }
+    .form-control:focus {
+        box-shadow: 0 4px 16px rgba(59,130,246,0.06);
+        border-color: rgba(59,130,246,0.35);
+    }
+
+    /* Submit button styled like primary action in Reception (green) */
+    .btn-primary {
+        background: linear-gradient(180deg,#10b981,#059669);
+        border: none;
+        color: #fff;
+        border-radius: 10px;
+        padding: .6rem .9rem;
+        box-shadow: 0 6px 18px rgba(5,150,105,0.08);
+    }
+    .btn-primary:active { transform: translateY(1px); }
+
+    /* Small helpers */
+    .muted-small { color:#6b7280; font-size:.9rem; }
+    .qr-key-badge {
+        display:inline-block;
+        background:#f8fafc;
+        border:1px solid rgba(15,23,42,0.03);
+        padding:.35rem .6rem;
+        border-radius:8px;
+        color:#374151;
+        font-size:.9rem;
+        margin-bottom:.5rem;
+    }
+
+    /* Responsive card width */
+    @* @media (min-width: 992px) {
+        .visitor-card { max-width: 680px; margin: 0 auto; }
+    } *@
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header in stile Reception -->
+    <div class="d-flex align-items-start gap-3 mb-3">
+        <div>
+            <h2 class="h4 mb-1 fw-bold">🧾 Check-in</h2>
+            <div class="text-muted small">Compila i dati e conferma l'ingresso</div>
         </div>
-        <div class="form-group">
-            <label>Nome</label>
-            <input asp-for="FirstName" class="form-control" />
+        <!-- spazio a destra riservato per eventuali badge/status -->
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 visitor-card">
+            <div class="card shadow-sm">
+                <div class="card-body"><form method="post">
+                        <input type="hidden" asp-for="QrKey" />
+                        <!-- mostra il QrKey come badge se presente -->
+                        <div class="mb-3 text-end">
+                            @if (!string.IsNullOrEmpty(Model?.QrKey)) {
+                                <div class="qr-key-badge">@Model.QrKey</div>
+                            } else {
+                                <div class="muted-small mb-2">QR non rilevato</div>
+                            }
+                        </div>
+
+                        <h3 class="h5 mb-3 fw-semibold">Dati visitatore</h3>
+
+                        <div class="mb-3">
+                            <label class="form-label">Nome</label>
+                            <input asp-for="FirstName" class="form-control" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cognome</label>
+                            <input asp-for="LastName" class="form-control" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input asp-for="Email" class="form-control" />
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" class="btn btn-primary flex-grow-1 btn-lg">Conferma check‑in</button>
+                            <a href="/" class="btn btn-outline-secondary btn-sm" style="border-radius:10px; padding:.55rem .75rem;">Annulla</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Cognome</label>
-            <input asp-for="LastName" class="form-control" />
-        </div>
-        <div class="form-group">
-            <label>Note</label>
-            <textarea asp-for="AdditionalInfo" class="form-control"></textarea>
-        </div>
-        <div class="form-group mt-3">
-            <button type="submit" class="btn btn-primary">Invia</button>
-        </div>
-    </form>
+        <div class="text-muted small mt-3">Nota: i dati saranno registrati nel sistema.</div>
+    </div>
 </div>
