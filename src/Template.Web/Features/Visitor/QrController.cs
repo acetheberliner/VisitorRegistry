@@ -36,7 +36,16 @@ namespace Template.Web.Features.Visitor
     [HttpGet("preview")]
     public virtual IActionResult Preview(string[] keys)
         {
-            ViewBag.Keys = keys ?? new string[] { "demo-qr", "main-entrance" };
+            ViewBag.Keys = keys ?? new string[] { 
+                "main-entrance",
+                "side-door", 
+                "rear-exit", 
+                "garage-access", 
+                "staff-entry", 
+                "vip-lounge", 
+                "storage-room", 
+                "emergency-exit", 
+                "roof-access" };
             return View();
         }
     }

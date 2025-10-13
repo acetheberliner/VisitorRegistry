@@ -1,360 +1,408 @@
 @{
+    Layout = "_Layout";
 }
-<div class="container">
-    <h1 class="page-title">🛎️ Reception Live</h1>
-    <p class="lead">Monitoraggio check-in/check-out in tempo reale con SignalR</p>
+<!-- Aggiunto font e stili per rendere interfaccia meno "bianca" e più arrotondata -->
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+    /* globale: font più rotondo e sfondo meno bianco */
+    body {
+        font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(180deg, #eef3f7 0%, #f7fbfd 100%);
+        color: #1f2937;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
 
-    <div id="status" class="connection-status connecting">🟡 Connessione in corso...</div>
-    <p id="visitCount" class="visit-count">Visitatori attualmente presenti: 0</p>
+    /* carte e contenitori: bordi arrotondati e ombra morbida */
+    .card {
+        border-radius: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        border: 1px solid rgba(15, 23, 42, 0.04);
+    }
+    .card .card-body { border-radius: 10px; }
 
-    <div class="card">
-        <div class="card-header">Registro visitatori</div>
-        <div class="card-body table-responsive">
-            <div class="d-flex align-items-center mb-3 gap-2">
-                <input id="filterSearch" class="form-control" placeholder="Cerca email, nome, cognome, QR..." style="max-width:380px" />
-                <input id="filterStart" type="date" class="form-control" style="max-width:160px" title="Data inizio" />
-                <input id="filterEnd" type="date" class="form-control" style="max-width:160px" title="Data fine" />
-                <label class="d-flex align-items-center gap-1" style="margin:0 8px;">
-                    <input id="filterPresent" type="checkbox" /> Solo presenti
-                </label>
-                <button id="applyFilters" class="btn btn-outline-secondary">Applica</button>
-                <button id="clearFilters" class="btn btn-outline-secondary">Reset</button>
-                <button id="exportBtn" class="btn btn-success ms-auto">Esporta Excel</button>
+    /* input, select e bottoni più arrotondati per look "morbido" */
+    .form-control,
+    .form-check-input {
+        border-radius: 10px;
+    }
+    .form-control:focus {
+        box-shadow: 0 4px 16px rgba(59,130,246,0.06);
+        border-color: rgba(59,130,246,0.35);
+    }
+    .btn {
+        border-radius: 10px;
+        transition: transform .06s ease, box-shadow .06s ease;
+    }
+    .btn-sm { padding: .35rem .6rem; }
+
+    /* evidenza riga e selezione più morbida */
+    #visits tbody tr:hover { background: rgba(99,102,241,0.03); }
+    tr.selected { background: linear-gradient(90deg, rgba(99,102,241,0.08), rgba(255,255,255,0)); }
+
+    /* testate e celle meno "taglienti" */
+    .table thead th {
+        background: transparent;
+        color: #374151;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+    }
+    #visits td { vertical-align: middle; }
+
+    /* badge e status più arrotondati e tonali */
+    #status.badge {
+        border-radius: 12px;
+        padding: .45rem .6rem;
+    }
+    .badge.bg-success { background: linear-gradient(180deg,#10b981,#059669); color: #fff; }
+    .badge.bg-warning { background: linear-gradient(180deg,#f59e0b,#d97706); color: #fff; }
+
+    /* footer e testi secondari più morbidi */
+    .card-footer { background: transparent; border-top: none; color: #6b7280; }
+    .text-muted { color: #6b7280 !important; }
+
+    /* piccoli aggiustamenti paddings per aria */
+    .container-fluid {
+        padding-top: 1.6rem;
+        padding-bottom: 1.6rem;
+        margin: 0 1.6rem 0 1.6rem;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex align-items-start gap-3 mb-3">
+        <div>
+            <h1 class="h3 mb-1">🛎️ Reception Live</h1>
+            <p class="text-muted mb-0">Monitoraggio check-in/check-out in tempo reale con SignalR</p>
+        </div>
+        <div class="ms-auto">
+            <span id="status" class="badge bg-warning text-dark">Connessione...</span>
+        </div>
+    </div>
+
+    <div class="row gx-4">
+        <!-- Main column -->
+        <div class="col-lg-9">
+            <!-- Stats -->
+            <div class="row mb-3 g-3">
+                <div class="col-sm-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">Presenti ora</small>
+                                    <div id="presentNow" class="h4 mb-0">0</div>
+                                </div>
+                                <div class="text-success fs-3"><i class="fas fa-user-check"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <small class="text-muted">Ultimo check‑in</small>
+                            <div id="lastCheckin" class="h6 mb-0">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <small class="text-muted">Totale registri</small>
+                            <div id="totalRecords" class="h6 mb-0">0</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <table id="visits" class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>QR</th>
-                        <th>Email</th>
-                        <th>Nome</th>
-                        <th>Cognome</th>
-                        <th>Entrata</th>
-                        <th>Uscita</th>
-                        <th>Azioni</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- rows popolati da JS -->
-                </tbody>
-            </table>
-            <div id="emptyState" class="empty-table-message" hidden>Nessuna visita registrata</div>
+            <!-- Filters -->
+            <div class="card mb-3 shadow-sm">
+                <div class="card-body">
+                    <div class="row gy-2 gx-2 align-items-center">
+                        <div class="col-md-5">
+                            <input id="filterSearch" class="form-control" placeholder="Cerca email, nome, cognome, QR..." />
+                        </div>
+                        <div class="col-auto">
+                            <input id="filterStart" type="date" class="form-control" />
+                        </div>
+                        <div class="col-auto">
+                            <input id="filterEnd" type="date" class="form-control" />
+                        </div>
+                        <div class="col-auto d-flex align-items-center">
+                            <input id="filterPresent" class="form-check-input me-1" type="checkbox" />
+                            <label class="form-check-label mb-0">Solo presenti</label>
+                        </div>
+                        <div class="col-auto">
+                            <button id="applyFilters" class="btn btn-outline-secondary btn-sm">Applica</button>
+                            <button id="clearFilters" class="btn btn-outline-secondary btn-sm">Reset</button>
+                        </div>
+                        <div class="col text-end">
+                            <button id="exportBtn" class="btn btn-success btn-sm">Esporta Excel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table id="visits" class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="min-width:220px;">#</th>
+                                    <th>QR</th>
+                                    <th>Email</th>
+                                    <th>Nome</th>
+                                    <th>Cognome</th>
+                                    <th>Entrata</th>
+                                    <th>Uscita</th>
+                                    <th style="width:120px;">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- rows populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer text-muted small">
+                    <span id="visitCount">Visitatori attualmente presenti: 0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-3">
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">Dettaglio visitatore</h6>
+                    <div id="detailEmpty" class="text-muted">Seleziona una riga per vedere i dettagli</div>
+                    <div id="detailPane" class="d-none">
+                        <div class="mb-2"><strong id="detailName">-</strong></div>
+                        <div class="mb-1"><small class="text-muted">Email</small><div id="detailEmail">-</div></div>
+                        <div class="mb-1"><small class="text-muted">QR</small><div id="detailQr">-</div></div>
+                        <div class="mb-1"><small class="text-muted">Entrata</small><div id="detailIn">-</div></div>
+                        <div class="mb-1"><small class="text-muted">Uscita</small><div id="detailOut">-</div></div>
+                        <div class="mt-3">
+                            <button id="detailCheckoutBtn" class="btn btn-danger btn-sm">Segna uscita</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title">Azioni rapide</h6>
+                    <button id="exportBtn2" class="btn btn-success btn-sm w-100 mb-2">Esporta Excel</button>
+                    <button id="resetView" class="btn btn-outline-secondary btn-sm w-100">Reset filtri</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 @section scripts {
     <style>
-        /* Layout & Responsiveness */
-        .container {
-            max-width: 1800px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        /* Typography */
-        .page-title {
-            font-size: 1.75rem;
-            font-weight: 600;
-            margin-top: 1rem;
-        }
-
-        .lead {
-            font-size: 1rem;
-            color: #666;
-            margin-bottom: 1rem;
-        }
-
-        /* Status */
-        .connection-status {
-            margin-bottom: 1rem;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            font-weight: 600;
-            max-width: fit-content;
-        }
-
-        .connecting {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .connected {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .visit-count {
-            font-weight: 500;
-            margin-bottom: 1rem;
-            color: #444;
-        }
-
-        /* Table Styles */
-        .card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-            overflow-x: auto;
-        }
-
-        .card-header {
-            background: #f7f7f7;
-            padding: 0.75rem 1rem;
-            font-weight: 600;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .card-body {
-            padding: 1rem;
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-            background-color: #fff;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.875rem;
-            }
-
-            .table thead {
-            background-color: #f9fafb;
-            text-align: left;
-            color: #6b7280;
-            font-weight: 600;
-            font-size: 0.85rem;
-            }
-
-            .table th, .table td {
-            padding: 1rem;
-            border-bottom: 1px solid #e5e7eb;
-            white-space: nowrap;
-            vertical-align: middle;
-            }
-
-            .table th:first-child,
-            .table td:first-child {
-            padding-left: 1.25rem;
-            }
-
-            .table th:last-child,
-            .table td:last-child {
-            padding-right: 1.25rem;
-            }
-
-            .table tbody tr:hover {
-            background-color: #f3f4f6;
-            }
-
-            /* Action button styling */
-            .btn {
-            font-size: 0.75rem;
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-weight: 500;
-            transition: all 0.2s ease-in-out;
-            }
-
-            .btn-success {
-            background-color: #10b981;
-            color: white;
-            border: none;
-            }
-
-            .btn-success:hover {
-            background-color: #059669;
-            }
-
-            .btn-outline-secondary {
-            background-color: transparent;
-            border: 1px solid #d1d5db;
-            color: #6b7280;
-            }
-
-            .btn-outline-secondary:disabled {
-            background-color: #f3f4f6;
-            color: #9ca3af;
-            border-color: #e5e7eb;
-        }
-
-        table th {
-            white-space: nowrap;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #444;
-        }
-
-        table td {
-            font-size: 0.875rem;
-        }
-
-        .empty-table-message {
-            text-align: center;
-            font-style: italic;
-            color: #888;
-            margin-top: 1rem;
-        }
-
-        /* Responsive adjustments */
-        @* @media (max-width: 600px) {
-            .page-title {
-                font-size: 1.4rem;
-            }
-
-            table th,
-            table td {
-                font-size: 0.75rem;
-                padding: 0.5rem;
-            }
-
-            .card-body {
-                padding: 0.5rem;
-            }
-        } *@
+        /* small visual helpers */
+        .card .card-body small { color: #6b7280; }
+        tr.selected { background: linear-gradient(90deg, rgba(99,102,241,0.06), rgba(255,255,255,0)); }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
     <script>
-        const statusEl = document.getElementById('status');
+        // elements
         const tbody = document.querySelector('#visits tbody');
-        const emptyState = document.getElementById('emptyState');
+        const statusEl = document.getElementById('status');
+        const presentNowEl = document.getElementById('presentNow');
+        const lastCheckinEl = document.getElementById('lastCheckin');
+        const totalRecordsEl = document.getElementById('totalRecords');
         const visitCountEl = document.getElementById('visitCount');
+        const detailPane = document.getElementById('detailPane');
+        const detailEmpty = document.getElementById('detailEmpty');
+        const detailName = document.getElementById('detailName');
+        const detailEmail = document.getElementById('detailEmail');
+        const detailQr = document.getElementById('detailQr');
+        const detailIn = document.getElementById('detailIn');
+        const detailOut = document.getElementById('detailOut');
+        const detailCheckoutBtn = document.getElementById('detailCheckoutBtn');
 
+        // filters
+        const filterSearch = document.getElementById('filterSearch');
+        const filterStart = document.getElementById('filterStart');
+        const filterEnd = document.getElementById('filterEnd');
+        const filterPresent = document.getElementById('filterPresent');
+        const applyFiltersBtn = document.getElementById('applyFilters');
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        const exportBtn = document.getElementById('exportBtn');
+        const exportBtn2 = document.getElementById('exportBtn2');
+
+        let selectedId = null;
+
+        // SignalR
         const conn = new signalR.HubConnectionBuilder().withUrl('/templateHub').build();
-
         conn.on('NewVisit', v => addOrUpdateRow(v));
         conn.on('UpdateVisit', v => addOrUpdateRow(v));
 
-        loadExistingVisits();
-
         conn.start().then(() => {
+            statusEl.classList.remove('bg-warning','text-dark');
+            statusEl.classList.add('bg-success','text-white');
             statusEl.innerText = '🟢 Connesso';
-            statusEl.classList.remove('connecting');
-            statusEl.classList.add('connected');
-            conn.invoke('JoinGroup', '00000000-0000-0000-0000-000000000000');
         }).catch(e => {
-            statusEl.innerText = '🔴 Errore di connessione: ' + e;
-            statusEl.classList.remove('connecting');
-            statusEl.classList.add('error');
+            statusEl.classList.remove('bg-warning');
+            statusEl.classList.add('bg-danger','text-white');
+            statusEl.innerText = '🔴 Errore di connessione';
+            console.warn(e);
         });
 
-        function val(obj, a, b) {
-            return obj[a] ?? obj[b] ?? '';
+        function val(o,a,b){ return (o&& (o[a] ?? o[b])) ?? ''; }
+        function fmt(d){ if(!d) return ''; const dt=new Date(d); return isNaN(dt.getTime())? '': dt.toLocaleString(); }
+
+        function buildQueryParams() {
+            const params = new URLSearchParams();
+            const q = filterSearch.value.trim();
+            if (q) params.set('q', q);
+            if (filterStart.value) params.set('start', filterStart.value);
+            if (filterEnd.value) params.set('end', filterEnd.value);
+            if (filterPresent.checked) params.set('presentOnly', 'true');
+            return params.toString();
         }
 
-        function fmt(d) {
-            if (!d) return '';
-            try {
-                const dt = new Date(d);
-                return isNaN(dt.getTime()) ? '' : dt.toLocaleString();
-            } catch { return ''; }
-        }
+        applyFiltersBtn?.addEventListener('click', () => loadExistingVisits());
+        clearFiltersBtn?.addEventListener('click', () => {
+            filterSearch.value=''; filterStart.value=''; filterEnd.value=''; filterPresent.checked=false;
+            loadExistingVisits();
+        });
+        exportBtn?.addEventListener('click', () => { const qs=buildQueryParams(); window.location = '/api/visits/export' + (qs? '?' + qs : ''); });
+        exportBtn2?.addEventListener('click', () => { const qs=buildQueryParams(); window.location = '/api/visits/export' + (qs? '?' + qs : ''); });
 
-        function checkoutButton(id, checkedOut) {
-            return checkedOut
-                ? '<button class="btn btn-sm btn-outline-secondary" disabled title="Uscita registrata">Uscito</button>'
-                : `<button class="btn btn-sm btn-danger" onclick="checkoutVisit('${id}', this)">Checkout</button>`;
+        function rowClickHandler(id, v){
+            selectedId = id;
+            document.querySelectorAll('#visits tbody tr').forEach(tr => tr.classList.remove('selected'));
+            const tr = document.getElementById('v-' + id);
+            if(tr) tr.classList.add('selected');
+
+            detailEmpty.classList.add('d-none');
+            detailPane.classList.remove('d-none');
+            detailName.innerText = `${val(v,'FirstName','firstName')} ${val(v,'LastName','lastName')}`;
+            detailEmail.innerText = val(v,'Email','email');
+            detailQr.innerText = val(v,'QrKey','qrKey');
+            detailIn.innerText = fmt(val(v,'CheckInTime','checkInTime'));
+            detailOut.innerText = fmt(val(v,'CheckOutTime','checkOutTime'));
+
+            // set checkout button state
+            if (val(v,'CheckOutTime','checkOutTime')) {
+                detailCheckoutBtn.disabled = true;
+                detailCheckoutBtn.innerText = 'Uscita registrata';
+            } else {
+                detailCheckoutBtn.disabled = false;
+                detailCheckoutBtn.innerText = 'Segna uscita';
+                detailCheckoutBtn.onclick = () => checkoutVisit(id, detailCheckoutBtn);
+            }
         }
 
         function addOrUpdateRow(v) {
-            const id = val(v, 'Id', 'id') || val(v, 'id', 'Id');
+            if (!v) return;
+            const id = val(v,'Id','id') || val(v,'id','Id');
+            if(!id) return;
             let tr = document.getElementById('v-' + id);
             const isNew = !tr;
-
             if (isNew) {
                 tr = document.createElement('tr');
                 tr.id = 'v-' + id;
                 tbody.prepend(tr);
             }
-
-            const QrKey = val(v, 'QrKey', 'qrKey');
-            const Email = val(v, 'Email', 'email');
-            const FirstName = val(v, 'FirstName', 'firstName');
-            const LastName = val(v, 'LastName', 'lastName');
-            const CheckInTime = val(v, 'CheckInTime', 'checkInTime');
-            const CheckOutTime = val(v, 'CheckOutTime', 'checkOutTime');
+            const QrKey = val(v,'QrKey','qrKey');
+            const Email = val(v,'Email','email');
+            const FirstName = val(v,'FirstName','firstName');
+            const LastName = val(v,'LastName','lastName');
+            const CheckInTime = val(v,'CheckInTime','checkInTime');
+            const CheckOutTime = val(v,'CheckOutTime','checkOutTime');
 
             tr.innerHTML = `
-                <td>${id}</td>
+                <td style="min-width:220px">${id}</td>
                 <td>${QrKey}</td>
                 <td>${Email}</td>
                 <td>${FirstName}</td>
                 <td>${LastName}</td>
                 <td>${fmt(CheckInTime)}</td>
                 <td>${fmt(CheckOutTime)}</td>
-                <td>${checkoutButton(id, CheckOutTime)}</td>
+                <td>
+                    ${ CheckOutTime ? 
+                        '<button class="btn btn-sm btn-outline-secondary" disabled>Uscito</button>' :
+                        `<button class="btn btn-sm btn-danger" onclick="checkoutVisit('${id}', this)">Segna uscita</button>`
+                    }
+                </td>
             `;
 
-            updateVisitCount();
-            updateEmptyState();
+            // bind row click to show details (use current v snapshot)
+            tr.onclick = () => rowClickHandler(id, v);
+
+            updateStats();
         }
 
         async function checkoutVisit(id, btnEl) {
             try {
                 btnEl.disabled = true;
-                btnEl.innerText = '⏳ Uscita...';
-                const res = await fetch('/api/visits/' + id + '/checkout', {
-                    method: 'POST',
-                    credentials: 'same-origin'
-                });
+                btnEl.innerText = '⏳';
+                const res = await fetch(`/api/visits/${id}/checkout`, { method: 'POST', credentials: 'same-origin' });
                 if (!res.ok) {
-                    console.warn('Checkout fallito', res.status);
+                    console.warn('Checkout failed', res.status);
                     btnEl.disabled = false;
-                    btnEl.innerText = '⬅ Uscita';
                     return;
                 }
                 const updated = await res.json();
                 addOrUpdateRow(updated);
+                if(selectedId === id) rowClickHandler(id, updated);
             } catch (e) {
-                console.error('Checkout error', e);
+                console.error(e);
             }
         }
 
         async function loadExistingVisits() {
             try {
-                const res = await fetch('/api/visits', { credentials: 'same-origin' });
-                if (!res.ok) return;
-
-                const arr = await res.json();
-                if (Array.isArray(arr)) {
-                    for (let i = arr.length - 1; i >= 0; i--) {
-                        addOrUpdateRow(arr[i]);
-                    }
+                const qs = buildQueryParams();
+                const url = '/api/visits' + (qs ? '?' + qs : '');
+                console.debug('[Reception] loadExistingVisits ->', url);
+                const res = await fetch(url, { credentials: 'same-origin' });
+                if (!res.ok) {
+                    console.warn('Failed to load persisted visits', res.status);
+                    return;
                 }
+                const arr = await res.json();
+                tbody.innerHTML = '';
+                if (Array.isArray(arr)) {
+                    for (let i = 0; i < arr.length; i++) addOrUpdateRow(arr[i]);
+                }
+                updateStats();
             } catch (e) {
-                console.error('Errore caricamento visite', e);
+                console.error(e);
             }
         }
 
-        @* function updateVisitCount() {
-            const count = document.querySelectorAll('#visits tbody tr').length;
-            visitCountEl.innerText = `Visitatori attualmente presenti: ${count}`;
-        } *@
-
-        function updateEmptyState() {
-            const hasRows = document.querySelectorAll('#visits tbody tr').length > 0;
-            emptyState.hidden = hasRows;
-        }
-
-        function updateVisitCount() {
-            // conta solo righe con uscita non impostata (presenza reale)
+        function updateStats() {
             const rows = Array.from(document.querySelectorAll('#visits tbody tr'));
-            const presentCount = rows.reduce((acc, tr) => {
-                const uscita = tr.querySelectorAll('td')[6]?.innerText?.trim();
-                return acc + (uscita ? 0 : 1);
+            totalRecordsEl.innerText = rows.length;
+            const present = rows.reduce((acc, tr) => {
+                const usc = tr.querySelectorAll('td')[6]?.innerText?.trim();
+                return acc + (usc ? 0 : 1);
             }, 0);
-            visitCountEl.innerText = `Visitatori attualmente presenti: ${presentCount}`;
+            presentNowEl.innerText = present;
+            visitCountEl.innerText = `Visitatori attualmente presenti: ${present}`;
+            // last checkin (first row)
+            const firstRow = rows[0];
+            if (firstRow) {
+                const lastIn = firstRow.querySelectorAll('td')[5]?.innerText || '';
+                lastCheckinEl.innerText = lastIn;
+            } else {
+                lastCheckinEl.innerText = '-';
+            }
+            document.getElementById('detailEmpty').classList.toggle('d-none', rows.length > 0 && selectedId);
         }
+
+        // init load
+        loadExistingVisits();
     </script>
 }
