@@ -78,6 +78,30 @@
                     }
                 });
             });
+
+            // debug-link: fetch the debug page, extract the URL and redirect to it
+            document.querySelectorAll('.debug-link').forEach(link => {
+                link.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const dbg = link.getAttribute('data-url');
+                    if (!dbg) return;
+                    try {
+                        const res = await fetch(dbg, { credentials: 'same-origin' });
+                        const txt = await res.text();
+                        // try to find first http(s) URL in the returned content
+                        const m = txt.match(/https?:\/\/[^\s"'<>]+/i);
+                        if (m && m[0]) {
+                            // if the URL is relative to this origin, it's fine; otherwise open directly
+                            window.location.href = m[0];
+                        } else {
+                            alert('URL di debug non trovato nella risposta.');
+                        }
+                    } catch (err) {
+                        console.error('Redirect debug failed', err);
+                        alert('Errore durante il redirect di debug.');
+                    }
+                });
+            });
         })();
     </script>
 }
@@ -106,7 +130,7 @@
 
                         <!-- Nome QR e link Debug direttamente cliccabile sotto il nome -->
                         <div class="fw-semibold mb-1 text-truncate" style="max-width:100%;">@k</div>
-                        <div class="mb-2"><a href="@dbgUrl" target="_blank" class="small text-decoration-none">🔍 Visualizza debug</a></div>
+                        <div class="mb-2"><a href="#" class="small text-decoration-none debug-link" data-url="@dbgUrl">🔍 Visualizza debug</a></div>
 
                         <div class="w-100 mt-auto">
                             <div class="btn-group w-100" role="group" aria-label="QR actions">
