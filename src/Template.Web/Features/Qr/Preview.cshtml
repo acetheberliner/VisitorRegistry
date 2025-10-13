@@ -2,28 +2,123 @@
     var keys = ViewBag.Keys as string[];
     if (keys == null || keys.Length == 0)
     {
-        keys = new string[] { 
-        "main-entrance", 
-        "side-door", 
-        "rear-exit", 
-        "garage-access", 
-        "staff-entry", 
-        "vip-lounge", 
-        "storage-room", 
-        "emergency-exit", 
-        "roof-access"
-    };
-
+        keys = new string[] {
+            "main-entrance",
+            "side-door",
+            "rear-exit",
+            "garage-access",
+            "staff-entry",
+            "vip-lounge",
+            "storage-room",
+            "emergency-exit",
+            "roof-access"
+        };
     }
 }
-<h2>QR Preview</h2>
-<div>
-    @foreach(var k in keys)
-    {
-        <div style="display:inline-block;margin:16px;text-align:center">
-            <a href="/qr/generate?key=@k&debug=true" target="_blank"><img src="/qr/generate?key=@k" style="width:220px;height:220px;border:1px solid #ddd;padding:8px" alt="QR @k" /></a>
-            <div style="margin-top:6px;font-weight:600">@k</div>
-            <div style="font-size:12px;margin-top:6px"><a href="/qr/generate?key=@k&debug=true" target="_blank">open URL (debug)</a></div>
-        </div>
+<!-- aggiunto: stesso font e stili principali di Index per background, padding e bordi -->
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+    /* match Index: font, background, colori, padding generale */
+    body {
+        font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(180deg, #eef3f7 0%, #f7fbfd 100%);
+        color: #1f2937;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
     }
+
+    .container-fluid {
+        padding-top: 1.6rem;
+        padding-bottom: 1.6rem;
+        margin: 0 1.6rem;
+    }
+
+    /* carte e contenitori: bordi arrotondati e ombra morbida (come Index) */
+    .card {
+        border-radius: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        border: 1px solid rgba(15, 23, 42, 0.04);
+    }
+    .card .card-body { border-radius: 10px; }
+
+    /* regole specifiche QR (mantienile ma coerenti con il nuovo design) */
+    .qr-image-wrap {
+        width: 220px;
+        height: 220px;
+        display: inline-block;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.06);
+        background: #fff;
+        padding: 8px;
+    }
+    .qr-image { width: 100%; height: 100%; object-fit: contain; display:block; }
+
+    .btn-group .btn { border-radius: 8px; }
+
+    @* @media (max-width: 576px) {
+        .qr-image-wrap { width: 160px; height:160px; }
+    } *@
+</style>
+
+@section scripts {
+    <script>
+        (function(){
+            document.querySelectorAll('.copy-link').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const url = btn.getAttribute('data-url');
+                    try {
+                        await navigator.clipboard.writeText(window.location.origin + url);
+                        btn.innerText = 'Copiato';
+                        setTimeout(() => btn.innerText = 'Copia link', 1400);
+                    } catch (err) {
+                        console.warn('Clipboard failed', err);
+                        alert('Copia non disponibile. URL: ' + (window.location.origin + url));
+                    }
+                });
+            });
+        })();
+    </script>
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex align-items-center mb-3">
+        <div>
+            <h2 class="h4 mb-0">🌐 QR Manager</h2>
+            <div class="text-muted small">Anteprima e azioni rapide per i codici QR</div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        @foreach(var k in keys)
+        {
+            var imgUrl = $"/qr/generate?key={k}";
+            var dbgUrl = $"/qr/generate?key={k}&debug=true";
+            <div class="col-12 col-sm-6 col-md-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column align-items-center text-center">
+                        <div class="qr-image-wrap mb-3">
+                            <a href="@imgUrl" target="_blank" title="Open image">
+                                <img src="@imgUrl" alt="QR @k" class="img-fluid qr-image" />
+                            </a>
+                        </div>
+
+                        <!-- Nome QR e link Debug direttamente cliccabile sotto il nome -->
+                        <div class="fw-semibold mb-1 text-truncate" style="max-width:100%;">@k</div>
+                        <div class="mb-2"><a href="@dbgUrl" target="_blank" class="small text-decoration-none">🔍 Visualizza debug</a></div>
+
+                        <div class="w-100 mt-auto">
+                            <div class="btn-group w-100" role="group" aria-label="QR actions">
+                                <!-- Debug rimosso da qui, rimangono Apri / Copia link / Scarica -->
+                                <a class="btn btn-outline-primary btn-sm" href="@imgUrl" target="_blank">Apri</a>
+                                <button type="button" class="btn btn-outline-secondary btn-sm copy-link" data-url="@imgUrl">Copia link</button>
+                                <a class="btn btn-success btn-sm" href="@imgUrl" download="@($"{k}.png")">Scarica</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
 </div>
