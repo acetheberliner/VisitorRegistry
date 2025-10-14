@@ -1,7 +1,6 @@
 @{
     Layout = "_Layout";
 }
-<!-- include local css from wwwroot -->
 <link rel="stylesheet" href="@Url.Content("/css/reception.css")" />
 <div class="container-fluid py-4">
     <div class="d-flex align-items-start gap-3 mb-3">
@@ -119,8 +118,10 @@
                         <div class="mb-1"><small class="text-muted">QR</small><div id="detailQr">-</div></div>
                         <div class="mb-1"><small class="text-muted">Entrata</small><div id="detailIn">-</div></div>
                         <div class="mb-1"><small class="text-muted">Uscita</small><div id="detailOut">-</div></div>
-                        <div class="mt-3">
+                        <div class="mt-3 d-flex gap-2">
                             <button id="detailCheckoutBtn" class="btn btn-danger btn-sm">Segna uscita</button>
+                            <button id="detailEditBtn" class="btn btn-outline-primary btn-sm">Modifica</button>
+                            <button id="detailDeleteBtn" class="btn btn-outline-danger btn-sm">Elimina</button>
                         </div>
                     </div>
                 </div>
@@ -139,14 +140,15 @@
 
 @section scripts {
     <style>
-        /* small visual helpers */
         .card .card-body small { color: #6b7280; }
         tr.selected { background: linear-gradient(90deg, rgba(99,102,241,0.06), rgba(255,255,255,0)); }
     </style>
 
+    <!-- CORRETTO: carica la libreria SignalR dal CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
+
     <script>
-        // elements
+        // elementi
         const tbody = document.querySelector('#visits tbody');
         const statusEl = document.getElementById('status');
         const presentNowEl = document.getElementById('presentNow');
@@ -174,24 +176,49 @@
 
         let selectedId = null;
 
-        // SignalR
-        const conn = new signalR.HubConnectionBuilder().withUrl('/templateHub').build();
-        conn.on('NewVisit', v => addOrUpdateRow(v));
-        conn.on('UpdateVisit', v => addOrUpdateRow(v));
-
-        conn.start().then(() => {
-            statusEl.classList.remove('bg-warning','text-dark');
-            statusEl.classList.add('bg-success','text-white');
-            statusEl.innerText = '🟢 Connesso';
-        }).catch(e => {
-            statusEl.classList.remove('bg-warning');
-            statusEl.classList.add('bg-danger','text-white');
-            statusEl.innerText = '🔴 Errore di connessione';
-            console.warn(e);
-        });
-
-        function val(o,a,b){ return (o&& (o[a] ?? o[b])) ?? ''; }
+        function valueOf(o,a,b){ return (o&& (o[a] ?? o[b])) ?? ''; }
         function fmt(d){ if(!d) return ''; const dt=new Date(d); return isNaN(dt.getTime())? '': dt.toLocaleString(); }
+
+        // inizializzazione SignalR robusta (non blocca se falla)
+        (function initSignalR(){
+            try {
+                if (typeof signalR === 'undefined') throw new Error('SignalR library not available');
+                const hubPath = window.location.origin + '/templateHub';
+                const conn = new signalR.HubConnectionBuilder()
+                    .withUrl(hubPath)
+                    .withAutomaticReconnect()
+                    .build();
+
+                conn.on('NewVisit', v => { console.debug('[SignalR] NewVisit', v); addOrUpdateRow(v); });
+                conn.on('UpdateVisit', v => { console.debug('[SignalR] UpdateVisit', v); addOrUpdateRow(v); });
+
+                conn.start()
+                    .then(() => {
+                        statusEl.classList.remove('bg-warning','text-dark');
+                        statusEl.classList.add('bg-success','text-white');
+                        statusEl.innerText = '🟢 Connesso';
+                        console.debug('[SignalR] connected to', hubPath);
+                    })
+                    .catch(e => {
+                        console.error('[SignalR] start failed', e);
+                        statusEl.classList.remove('bg-warning');
+                        statusEl.classList.add('bg-danger','text-white');
+                        statusEl.innerText = '🔴 Errore di connessione';
+                    });
+
+                conn.onclose(err => {
+                    console.warn('[SignalR] connection closed', err);
+                    statusEl.classList.remove('bg-success','text-white');
+                    statusEl.classList.add('bg-danger','text-white');
+                    statusEl.innerText = '🔴 Connessione persa';
+                });
+            } catch (err) {
+                console.error('SignalR init error', err);
+                statusEl.classList.remove('bg-warning','text-dark');
+                statusEl.classList.add('bg-danger','text-white');
+                statusEl.innerText = '🔴 SignalR non disponibile';
+            }
+        })();
 
         function buildQueryParams() {
             const params = new URLSearchParams();
@@ -219,14 +246,14 @@
 
             detailEmpty.classList.add('d-none');
             detailPane.classList.remove('d-none');
-            detailName.innerText = `${val(v,'FirstName','firstName')} ${val(v,'LastName','lastName')}`;
-            detailEmail.innerText = val(v,'Email','email');
-            detailQr.innerText = val(v,'QrKey','qrKey');
-            detailIn.innerText = fmt(val(v,'CheckInTime','checkInTime'));
-            detailOut.innerText = fmt(val(v,'CheckOutTime','checkOutTime'));
+            detailName.innerText = `${valueOf(v,'FirstName','firstName')} ${valueOf(v,'LastName','lastName')}`;
+            detailEmail.innerText = valueOf(v,'Email','email');
+            detailQr.innerText = valueOf(v,'QrKey','qrKey');
+            detailIn.innerText = fmt(valueOf(v,'CheckInTime','checkInTime'));
+            detailOut.innerText = fmt(valueOf(v,'CheckOutTime','checkOutTime'));
 
             // set checkout button state
-            if (val(v,'CheckOutTime','checkOutTime')) {
+            if (valueOf(v,'CheckOutTime','checkOutTime')) {
                 detailCheckoutBtn.disabled = true;
                 detailCheckoutBtn.innerText = 'Uscita registrata';
             } else {
@@ -238,7 +265,7 @@
 
         function addOrUpdateRow(v) {
             if (!v) return;
-            const id = val(v,'Id','id') || val(v,'id','Id');
+            const id = valueOf(v,'Id','id') || valueOf(v,'id','Id');
             if(!id) return;
             let tr = document.getElementById('v-' + id);
             const isNew = !tr;
@@ -247,12 +274,12 @@
                 tr.id = 'v-' + id;
                 tbody.prepend(tr);
             }
-            const QrKey = val(v,'QrKey','qrKey');
-            const Email = val(v,'Email','email');
-            const FirstName = val(v,'FirstName','firstName');
-            const LastName = val(v,'LastName','lastName');
-            const CheckInTime = val(v,'CheckInTime','checkInTime');
-            const CheckOutTime = val(v,'CheckOutTime','checkOutTime');
+            const QrKey = valueOf(v,'QrKey','qrKey');
+            const Email = valueOf(v,'Email','email');
+            const FirstName = valueOf(v,'FirstName','firstName');
+            const LastName = valueOf(v,'LastName','lastName');
+            const CheckInTime = valueOf(v,'CheckInTime','checkInTime');
+            const CheckOutTime = valueOf(v,'CheckOutTime','checkOutTime');
 
             tr.innerHTML = `
                 <td style="min-width:220px">${id}</td>
@@ -335,7 +362,97 @@
             document.getElementById('detailEmpty').classList.toggle('d-none', rows.length > 0 && selectedId);
         }
 
-        // init load
+        function openEdit(id){
+            const tr = document.getElementById('v-' + id);
+            if (!tr) return;
+            const cells = tr.querySelectorAll('td');
+            const v = {
+                Id: id,
+                QrKey: cells[1]?.innerText,
+                Email: cells[2]?.innerText,
+                FirstName: cells[3]?.innerText,
+                LastName: cells[4]?.innerText,
+                CheckInTime: cells[5]?.innerText,
+                CheckOutTime: cells[6]?.innerText
+            };
+            openEditInDetail(id, v);
+        }
+
+        function openEditInDetail(id, v){
+            selectedId = id;
+            detailEmpty.classList.add('d-none');
+            detailPane.classList.remove('d-none');
+            detailName.innerHTML = `<input id="edit-first" class="form-control form-control-sm" value="${escapeHtml(valueOf(v,'FirstName','firstName'))}" />`;
+            detailEmail.innerHTML = `<input id="edit-email" class="form-control form-control-sm" value="${escapeHtml(valueOf(v,'Email','email'))}" />`;
+            detailQr.innerHTML = `<input id="edit-qr" class="form-control form-control-sm" value="${escapeHtml(valueOf(v,'QrKey','qrKey'))}" />`;
+            detailIn.innerHTML = `<input id="edit-in" class="form-control form-control-sm" value="${escapeHtml(fmt(valueOf(v,'CheckInTime','checkInTime')))}" />`;
+            detailOut.innerHTML = `<input id="edit-out" class="form-control form-control-sm" value="${escapeHtml(fmt(valueOf(v,'CheckOutTime','checkOutTime')))}" />`;
+            detailCheckoutBtn.style.display = 'none';
+            editBtn.style.display = 'none';
+            deleteBtn.style.display = 'none';
+            const save = document.createElement('button'); save.className='btn btn-success btn-sm'; save.innerText='Salva';
+            save.onclick = async ()=>{ await saveEdits(id); };
+            const cancel = document.createElement('button'); cancel.className='btn btn-outline-secondary btn-sm'; cancel.innerText='Annulla';
+            cancel.onclick = ()=>{ const tr=document.getElementById('v-'+id); if(tr){ const c=tr.querySelectorAll('td'); rowClickHandler(id,{ FirstName:c[3]?.innerText, LastName:c[4]?.innerText, Email:c[2]?.innerText, QrKey:c[1]?.innerText, CheckInTime:c[5]?.innerText, CheckOutTime:c[6]?.innerText }); } else { detailPane.classList.add('d-none'); detailEmpty.classList.remove('d-none'); } };
+            const actions = detailCheckoutBtn.parentElement;
+            actions.appendChild(save);
+            actions.appendChild(cancel);
+        }
+
+        async function saveEdits(id){
+            try{
+                const payload = {
+                    FirstName: document.getElementById('edit-first')?.value || '',
+                    Email: document.getElementById('edit-email')?.value || '',
+                    QrKey: document.getElementById('edit-qr')?.value || ''
+                };
+                const res = await fetch(`/api/visits/${id}`, {
+                    method: 'PUT',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if(!res.ok){ alert('Salvataggio fallito'); return; }
+                const updated = await res.json();
+                addOrUpdateRow(updated);
+                if(selectedId === id) rowClickHandler(id, updated);
+            }catch(e){ console.error(e); alert('Errore salvataggio'); }
+            finally{
+                detailCheckoutBtn.style.display = '';
+                editBtn.style.display = '';
+                deleteBtn.style.display = '';
+                const actions = detailCheckoutBtn.parentElement;
+                Array.from(actions.querySelectorAll('button')).forEach(b => { if(b.innerText === 'Salva' || b.innerText === 'Annulla') b.remove(); });
+            }
+        }
+
+        async function deleteVisit(id, btnEl){
+            if(!confirm('Eliminare questa entry?')) return;
+            try{
+                btnEl.disabled = true;
+                const tokenMeta = document.querySelector('meta[name="RequestVerificationToken"]')?.getAttribute('content');
+                const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                const headers = {};
+                if(tokenMeta) headers['RequestVerificationToken'] = tokenMeta;
+                else if(tokenInput) headers['RequestVerificationToken'] = tokenInput;
+                const res = await fetch(`/api/visits/${id}`, { method: 'DELETE', credentials: 'same-origin', headers });
+                if(!res.ok){
+                    let body='';
+                    try{ body = await res.text(); }catch{}
+                    alert(`Eliminazione fallita (${res.status})${body ? ': ' + body : ''}`);
+                    btnEl.disabled = false;
+                    return;
+                }
+                const tr = document.getElementById('v-' + id);
+                if(tr) tr.remove();
+                updateStats();
+                if(selectedId === id){ selectedId = null; detailPane.classList.add('d-none'); detailEmpty.classList.remove('d-none'); }
+            }catch(e){ console.error(e); alert('Errore eliminazione'); if(btnEl) btnEl.disabled = false; }
+        }
+
+        function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
+
+        // init load (always call, independent from SignalR)
         loadExistingVisits();
     </script>
 }
