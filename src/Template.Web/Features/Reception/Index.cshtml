@@ -1,82 +1,15 @@
 @{
     Layout = "_Layout";
 }
-<!-- Aggiunto font e stili per rendere interfaccia meno "bianca" e più arrotondata -->
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
-<style>
-    /* globale: font più rotondo e sfondo meno bianco */
-    body {
-        font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        background: linear-gradient(90deg, #eef3f7 0%, #f7fbfd 100%);
-        color: #1f2937;
-        -webkit-font-smoothing: antialiased;
-        text-rendering: optimizeLegibility;
-    }
-
-    /* carte e contenitori: bordi arrotondati e ombra morbida */
-    .card {
-        border-radius: 12px;
-        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-        border: 1px solid rgba(15, 23, 42, 0.04);
-    }
-    .card .card-body { border-radius: 10px; }
-
-    /* input, select e bottoni più arrotondati per look "morbido" */
-    .form-control,
-    .form-check-input {
-        border-radius: 10px;
-    }
-    .form-control:focus {
-        box-shadow: 0 4px 16px rgba(59,130,246,0.06);
-        border-color: rgba(59,130,246,0.35);
-    }
-    .btn {
-        border-radius: 10px;
-        transition: transform .06s ease, box-shadow .06s ease;
-    }
-    .btn-sm { padding: .35rem .6rem; }
-
-    /* evidenza riga e selezione più morbida */
-    #visits tbody tr:hover { background: rgba(99,102,241,0.03); }
-    tr.selected { background: linear-gradient(90deg, rgba(99,102,241,0.08), rgba(255,255,255,0)); }
-
-    /* testate e celle meno "taglienti" */
-    .table thead th {
-        background: transparent;
-        color: #374151;
-        font-weight: 600;
-        letter-spacing: 0.2px;
-    }
-    #visits td { vertical-align: middle; }
-
-    /* badge e status più arrotondati e tonali */
-    #status.badge {
-        border-radius: 12px;
-        padding: .45rem .6rem;
-    }
-    .badge.bg-success { background: linear-gradient(180deg,#10b981,#059669); color: #fff; }
-    .badge.bg-warning { background: linear-gradient(180deg,#f59e0b,#d97706); color: #fff; }
-
-    /* footer e testi secondari più morbidi */
-    .card-footer { background: transparent; border-top: none; color: #6b7280; }
-    .text-muted { color: #6b7280 !important; }
-
-    /* piccoli aggiustamenti paddings per aria */
-    .container-fluid {
-        padding-top: 1.6rem;
-        padding-bottom: 1.6rem;
-        width: 95%;
-    }
-</style>
-
+<!-- include local css from wwwroot -->
+<link rel="stylesheet" href="@Url.Content("/css/reception.css")" />
 <div class="container-fluid py-4">
     <div class="d-flex align-items-start gap-3 mb-3">
         <div>
-            <h1 class="h3 mb-1 fw-bold">🛎️ Reception Live</h1>
+            <h1 class="h3 mb-1">🛎️ Reception Live</h1>
             <p class="text-muted mb-0">Monitoraggio check-in/check-out in tempo reale con SignalR</p>
         </div>
-        <div class="ms-auto d-flex align-items-center gap-2">
+        <div class="ms-auto">
             <span id="status" class="badge bg-warning text-dark">Connessione...</span>
         </div>
     </div>
@@ -179,7 +112,7 @@
             <div class="card shadow-sm mb-3">
                 <div class="card-body">
                     <h6 class="card-title">Dettaglio visitatore</h6>
-                    <div id="detailEmpty" class="text-muted">Seleziona una entry per vedere i dettagli</div>
+                    <div id="detailEmpty" class="text-muted">Seleziona una riga per vedere i dettagli</div>
                     <div id="detailPane" class="d-none">
                         <div class="mb-2"><strong id="detailName">-</strong></div>
                         <div class="mb-1"><small class="text-muted">Email</small><div id="detailEmail">-</div></div>
@@ -197,9 +130,7 @@
                 <div class="card-body">
                     <h6 class="card-title">Azioni rapide</h6>
                     <button id="exportBtn2" class="btn btn-success btn-sm w-100 mb-2">Esporta Excel</button>
-                    <button id="resetView" class="btn btn-outline-secondary btn-sm w-100 mb-2">Reset filtri</button>
-                    <a href="http://localhost:5178/qr/preview" target="_blank" rel="noopener" role="button"
-                       class="btn btn-outline-primary btn-sm w-100 text-decoration-none">QR Manager</a>
+                    <button id="resetView" class="btn btn-outline-secondary btn-sm w-100">Reset filtri</button>
                 </div>
             </div>
         </div>
