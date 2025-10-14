@@ -58,6 +58,10 @@
         margin-bottom:.5rem;
     }
 
+    /* validation helpers */
+    .invalid-feedback { color: #dc3545; font-size: .85rem; display: none; margin-top: 6px; }
+    .is-invalid { border-color: #dc3545 !important; box-shadow: none !important; }
+
     /* Responsive card width */
     @* @media (min-width: 992px) {
         .visitor-card { max-width: 680px; margin: 0 auto; }
@@ -68,7 +72,7 @@
     <!-- Header in stile Reception -->
     <div class="d-flex align-items-start gap-3 mb-3">
         <div>
-            <h2 class="h4 mb-1 fw-bold">🧾 Check-in</h2>
+            <h2 class="h4 mb-1 fw-bold">⏫ Check-in</h2>
             <div class="text-muted small">Compila i dati e conferma l'ingresso</div>
         </div>
         <!-- spazio a destra riservato per eventuali badge/status -->
@@ -77,7 +81,8 @@
     <div class="row justify-content-center">
         <div class="col-12 col-sm-10 col-md-8 col-lg-6 visitor-card">
             <div class="card shadow-sm">
-                <div class="card-body"><form method="post">
+                <div class="card-body">
+                    <form method="post" id="visitorForm">
                         <input type="hidden" asp-for="QrKey" />
                         <!-- mostra il QrKey come badge se presente -->
                         <div class="mb-3 text-end">
@@ -91,18 +96,21 @@
                         <h3 class="h5 mb-3 fw-semibold">Dati visitatore</h3>
 
                         <div class="mb-3">
-                            <label class="form-label">Nome</label>
-                            <input asp-for="FirstName" class="form-control" />
+                            <label class="form-label">Nome (*)</label>
+                            <input asp-for="FirstName" class="form-control" required />
+                            <div class="invalid-feedback" id="err-firstName">Il nome è obbligatorio.</div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Cognome</label>
-                            <input asp-for="LastName" class="form-control" />
+                            <label class="form-label">Cognome (*)</label>
+                            <input asp-for="LastName" class="form-control" required />
+                            <div class="invalid-feedback" id="err-lastName">Il cognome è obbligatorio.</div>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label">Email</label>
                             <input asp-for="Email" class="form-control" />
+                            <!-- Email è opzionale: nessun required -->
                         </div>
+
                         <div class="d-flex gap-2 mt-3">
                             <button type="submit" class="btn btn-success flex-grow-1 btn-lg">Conferma ingresso</button>
                             <a href="/" class="btn btn-outline-secondary btn-sm" style="border-radius:10px; padding:.55rem .75rem;">Annulla</a>
@@ -114,3 +122,63 @@
         <div class="text-muted small mt-3">Nota: i dati saranno registrati nel sistema.</div>
     </div>
 </div>
+
+<script>
+	// client-side form validation to enforce Nome/Cognome before submit
+	(function () {
+		const form = document.getElementById('visitorForm');
+		if (!form) return;
+
+		const first = form.querySelector('[name="FirstName"], [asp-for="FirstName"]') || form.querySelector('input[asp-for="FirstName"]');
+		const last = form.querySelector('[name="LastName"], [asp-for="LastName"]') || form.querySelector('input[asp-for="LastName"]');
+
+		function setInvalid(el, msgElId, show) {
+			if (!el) return;
+			const msg = document.getElementById(msgElId);
+			if (show) {
+				el.classList.add('is-invalid');
+				if (msg) msg.style.display = 'block';
+			} else {
+				el.classList.remove('is-invalid');
+				if (msg) msg.style.display = 'none';
+			}
+		}
+
+		form.addEventListener('submit', function (e) {
+			let invalid = false;
+			const firstVal = first && first.value ? first.value.trim() : '';
+			const lastVal = last && last.value ? last.value.trim() : '';
+
+			if (!firstVal) {
+				setInvalid(first, 'err-firstName', true);
+				invalid = true;
+			} else {
+				setInvalid(first, 'err-firstName', false);
+			}
+
+			if (!lastVal) {
+				setInvalid(last, 'err-lastName', true);
+				invalid = true;
+			} else {
+				setInvalid(last, 'err-lastName', false);
+			}
+
+			if (invalid) {
+				e.preventDefault();
+				// focus first invalid field
+				(if (first && !firstVal) ? first : (last && !lastVal) ? last : first).focus?.();
+			}
+		});
+
+		// clear error on input
+		[first, last].forEach(el => {
+			if (!el) return;
+			el.addEventListener('input', () => {
+				if (el.value.trim()) {
+					if (el === first) setInvalid(first, 'err-firstName', false);
+					if (el === last) setInvalid(last, 'err-lastName', false);
+				}
+			});
+		});
+	})();
+</script>
