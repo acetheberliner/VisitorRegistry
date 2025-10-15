@@ -1,81 +1,14 @@
 @model Template.Web.Features.Visitor.VisitorFormModel
 
-<!-- Aggiunto: font e stili per allineamento grafico con Reception Index -->
+<link rel="stylesheet" href="@Url.Content("/css/visitor.css")" />
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
-<style>
-    /* MATCH Reception: font + global bg */
-    body {
-        font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        background: linear-gradient(90deg, #eef3f7 0%, #f7fbfd 100%);
-        color: #1f2937;
-        -webkit-font-smoothing: antialiased;
-        text-rendering: optimizeLegibility;
-    }
-
-    .container-fluid { padding-top:1.6rem; padding-bottom:1.6rem; width:95%; }
-
-    /* Card system identical to Reception */
-    .card {
-        border-radius: 12px;
-        background: linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
-        box-shadow: 0 8px 20px rgba(15,23,42,0.06);
-        border: 1px solid rgba(15,23,42,0.04);
-    }
-    .card .card-body { border-radius:10px; padding: 1.4rem; }
-
-    /* Form controls */
-    .form-label { color: #6b7280; font-size: .95rem; }
-    .form-control {
-        border-radius: 10px;
-        padding: .6rem .75rem;
-        border: 1px solid rgba(15,23,42,0.06);
-    }
-    .form-control:focus {
-        box-shadow: 0 4px 16px rgba(59,130,246,0.06);
-        border-color: rgba(59,130,246,0.35);
-    }
-
-    /* Submit button styled like primary action in Reception (green) */
-    .btn-primary {
-        border: none;
-        color: #fff;
-        border-radius: 10px;
-        padding: .6rem .9rem;
-        box-shadow: 0 6px 18px rgba(5,150,105,0.08);
-    }
-    .btn-primary:active { transform: translateY(1px); }
-
-    /* Small helpers */
-    .muted-small { color:#6b7280; font-size:.9rem; }
-    .qr-key-badge {
-        display:inline-block;
-        background:#f8fafc;
-        border:1px solid rgba(15,23,42,0.03);
-        padding:.35rem .6rem;
-        border-radius:8px;
-        color:#374151;
-        font-size:.9rem;
-        margin-bottom:.5rem;
-    }
-
-    /* validation helpers */
-    .invalid-feedback { color: #dc3545; font-size: .85rem; display: none; margin-top: 6px; }
-    .is-invalid { border-color: #dc3545 !important; box-shadow: none !important; }
-
-    /* Responsive card width */
-    @* @media (min-width: 992px) {
-        .visitor-card { max-width: 680px; margin: 0 auto; }
-    } *@
-</style>
 
 <div class="container-fluid py-4">
-    <!-- Header in stile Reception -->
     <div class="d-flex align-items-start gap-3 mb-3">
         <div>
             <h2 class="h4 mb-1 fw-bold">⏫ Check-in</h2>
             <div class="text-muted small">Compila i dati e conferma l'ingresso</div>
         </div>
-        <!-- spazio a destra riservato per eventuali badge/status -->
     </div>
 
     <div class="row justify-content-center">
@@ -84,7 +17,6 @@
                 <div class="card-body">
                     <form method="post" id="visitorForm">
                         <input type="hidden" asp-for="QrKey" />
-                        <!-- mostra il QrKey come badge se presente -->
                         <div class="mb-3 text-end">
                             @if (!string.IsNullOrEmpty(Model?.QrKey)) {
                                 <div class="qr-key-badge">@Model.QrKey</div>
@@ -106,9 +38,9 @@
                             <div class="invalid-feedback" id="err-lastName">Il cognome è obbligatorio.</div>
                         </div>
                         <div class="mb-3">
+                            <!-- opzionale -->
                             <label class="form-label">Email</label>
                             <input asp-for="Email" class="form-control" />
-                            <!-- Email è opzionale: nessun required -->
                         </div>
 
                         <div class="d-flex gap-2 mt-3">
@@ -123,62 +55,6 @@
     </div>
 </div>
 
-<script>
-	// client-side form validation to enforce Nome/Cognome before submit
-	(function () {
-		const form = document.getElementById('visitorForm');
-		if (!form) return;
-
-		const first = form.querySelector('[name="FirstName"], [asp-for="FirstName"]') || form.querySelector('input[asp-for="FirstName"]');
-		const last = form.querySelector('[name="LastName"], [asp-for="LastName"]') || form.querySelector('input[asp-for="LastName"]');
-
-		function setInvalid(el, msgElId, show) {
-			if (!el) return;
-			const msg = document.getElementById(msgElId);
-			if (show) {
-				el.classList.add('is-invalid');
-				if (msg) msg.style.display = 'block';
-			} else {
-				el.classList.remove('is-invalid');
-				if (msg) msg.style.display = 'none';
-			}
-		}
-
-		form.addEventListener('submit', function (e) {
-			let invalid = false;
-			const firstVal = first && first.value ? first.value.trim() : '';
-			const lastVal = last && last.value ? last.value.trim() : '';
-
-			if (!firstVal) {
-				setInvalid(first, 'err-firstName', true);
-				invalid = true;
-			} else {
-				setInvalid(first, 'err-firstName', false);
-			}
-
-			if (!lastVal) {
-				setInvalid(last, 'err-lastName', true);
-				invalid = true;
-			} else {
-				setInvalid(last, 'err-lastName', false);
-			}
-
-			if (invalid) {
-				e.preventDefault();
-				// focus first invalid field
-				(if (first && !firstVal) ? first : (last && !lastVal) ? last : first).focus?.();
-			}
-		});
-
-		// clear error on input
-		[first, last].forEach(el => {
-			if (!el) return;
-			el.addEventListener('input', () => {
-				if (el.value.trim()) {
-					if (el === first) setInvalid(first, 'err-firstName', false);
-					if (el === last) setInvalid(last, 'err-lastName', false);
-				}
-			});
-		});
-	})();
-</script>
+@section scripts {
+	<script src="@Url.Content("~/js/visitor.js")"></script>
+}
