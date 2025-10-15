@@ -8,9 +8,6 @@
             <h1 class="h3 mb-1">🛎️ Reception Live</h1>
             <p class="text-muted mb-0">Monitoraggio check-in/check-out in tempo reale con SignalR</p>
         </div>
-        <div class="me-auto my-auto">
-            <span id="status" class="badge bg-warning text-dark">Connessione...</span>
-        </div>
     </div>
 
     <div class="row gx-4">
@@ -152,7 +149,6 @@
     <script>
         // elements
         const tbody = document.querySelector('#visits tbody');
-        const statusEl = document.getElementById('status');
         const presentNowEl = document.getElementById('presentNow');
         const lastCheckinEl = document.getElementById('lastCheckin');
         const totalRecordsEl = document.getElementById('totalRecords');
@@ -184,14 +180,9 @@
         conn.on('UpdateVisit', v => addOrUpdateRow(v));
 
         conn.start().then(() => {
-            statusEl.classList.remove('bg-warning','text-dark');
-            statusEl.classList.add('bg-success','text-white');
-            statusEl.innerText = '🟢 Connesso';
+            console.debug('SignalR connected');
         }).catch(e => {
-            statusEl.classList.remove('bg-warning');
-            statusEl.classList.add('bg-danger','text-white');
-            statusEl.innerText = '🔴 Errore di connessione';
-            console.warn(e);
+            console.warn('SignalR connection failed', e);
         });
 
         function val(o,a,b){ return (o&& (o[a] ?? o[b])) ?? ''; }
