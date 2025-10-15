@@ -1,7 +1,11 @@
 @model Template.Web.Features.Visitor.VisitorFormModel
 
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Check-in";
+}
 <link rel="stylesheet" href="@Url.Content("/css/visitor.css")" />
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+
 
 <div class="container-fluid py-4">
     <div class="d-flex align-items-start gap-3 mb-3">

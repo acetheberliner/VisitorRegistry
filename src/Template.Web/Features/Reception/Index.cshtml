@@ -1,5 +1,6 @@
 @{
     Layout = "_Layout";
+    ViewData["Title"] = "Reception";
 }
 <link rel="stylesheet" href="@Url.Content("/css/reception.css")" />
 <div class="container-fluid py-4">
@@ -91,9 +92,7 @@
                                     <th style="width:120px;">Azioni</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- rows populated by JS -->
-                            </tbody>
+                            <tbody><!-- JS --></tbody>
                         </table>
                     </div>
                 </div>
@@ -148,6 +147,5 @@
     <!-- SignalR CDN (unchanged) -->
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
 
-    <!-- externalized reception script -->
     <script src="@Url.Content("~/js/reception.js")"></script>
 }
