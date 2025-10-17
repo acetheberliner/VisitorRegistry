@@ -1,258 +1,287 @@
-// elements
-const tbody = document.querySelector('#visits tbody');
-const presentNowEl = document.getElementById('presentNow');
-const lastCheckinEl = document.getElementById('lastCheckin');
-const totalRecordsEl = document.getElementById('totalRecords');
-const visitCountEl = document.getElementById('visitCount');
-const detailPane = document.getElementById('detailPane');
-const detailEmpty = document.getElementById('detailEmpty');
-const detailName = document.getElementById('detailName');
-const detailEmail = document.getElementById('detailEmail');
-const detailQr = document.getElementById('detailQr');
-const detailIn = document.getElementById('detailIn');
-const detailOut = document.getElementById('detailOut');
-const detailCheckoutBtn = document.getElementById('detailCheckoutBtn');
+// elementi DOM principali
+var tableBody = document.getElementById('visits').getElementsByTagName('tbody')[0];
+var presentNowEl = document.getElementById('presentNow');
+var lastCheckinEl = document.getElementById('lastCheckin');
+var totalRecordsEl = document.getElementById('totalRecords');
+var visitCountEl = document.getElementById('visitCount');
 
-// filters
-const filterSearch = document.getElementById('filterSearch');
-const filterStart = document.getElementById('filterStart');
-const filterEnd = document.getElementById('filterEnd');
-const filterPresent = document.getElementById('filterPresent');
-const applyFiltersBtn = document.getElementById('applyFilters');
-const clearFiltersBtn = document.getElementById('clearFilters');
-const exportBtn = document.getElementById('exportBtn');
-const exportBtn2 = document.getElementById('exportBtn2');
+var detailPane = document.getElementById('detailPane');
+var detailEmpty = document.getElementById('detailEmpty');
+var detailName = document.getElementById('detailName');
+var detailEmail = document.getElementById('detailEmail');
+var detailQr = document.getElementById('detailQr');
+var detailIn = document.getElementById('detailIn');
+var detailOut = document.getElementById('detailOut');
+var detailCheckoutBtn = document.getElementById('detailCheckoutBtn');
 
-let selectedId = null;
+// filtri & bottoni
+var filterSearch = document.getElementById('filterSearch');
+var filterStart = document.getElementById('filterStart');
+var filterEnd = document.getElementById('filterEnd');
+var filterPresent = document.getElementById('filterPresent');
+var applyFiltersBtn = document.getElementById('applyFilters');
+var clearFiltersBtn = document.getElementById('clearFilters');
+var exportBtn = document.getElementById('exportBtn');
+var exportBtn2 = document.getElementById('exportBtn2');
 
-// SignalR
-const conn = new signalR.HubConnectionBuilder().withUrl('/templateHub').build();
-conn.on('NewVisit', v => addOrUpdateRow(v));
-conn.on('UpdateVisit', v => addOrUpdateRow(v));
+var selectedId = null;
 
-conn.start().then(() => {
-    console.debug('SignalR connected');
-}).catch(e => {
-    console.warn('SignalR connection failed', e);
-});
-
-function val(o,a,b){ return (o&& (o[a] ?? o[b])) ?? ''; }
-function fmt(d){ if(!d) return ''; const dt=new Date(d); return isNaN(dt.getTime())? '': dt.toLocaleString(); }
-
-function buildQueryParams() {
-    const params = new URLSearchParams();
-    const q = filterSearch.value.trim();
-    if (q) params.set('q', q);
-    if (filterStart.value) params.set('start', filterStart.value);
-    if (filterEnd.value) params.set('end', filterEnd.value);
-    if (filterPresent.checked) params.set('presentOnly', 'true');
-    return params.toString();
+// helper base (semplici)
+function getField(o, a, b) { return (o && (o[a] !== undefined ? o[a] : o[b])) || ''; }
+function formatDate(value) {
+    if (!value) return '';
+    var d = new Date(value);
+    return isNaN(d.getTime()) ? '' : d.toLocaleString();
+}
+function escapeHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-applyFiltersBtn?.addEventListener('click', () => loadExistingVisits());
-clearFiltersBtn?.addEventListener('click', () => {
-    filterSearch.value=''; filterStart.value=''; filterEnd.value=''; filterPresent.checked=false;
-    loadExistingVisits();
-});
-exportBtn?.addEventListener('click', () => { const qs=buildQueryParams(); window.location = '/api/visits/export' + (qs? '?' + qs : ''); });
-exportBtn2?.addEventListener('click', () => { const qs=buildQueryParams(); window.location = '/api/visits/export' + (qs? '?' + qs : ''); });
-
-// global error handler to catch JS errors that may stop handlers
-window.addEventListener('error', (e) => {
-    console.error('Global error:', e.message, 'at', e.filename + ':' + e.lineno + ':' + e.colno);
-});
-
-function rowClickHandler(id, v){
-    console.debug('[UI] rowClickHandler selected id=', id);
-    selectedId = id;
-    document.querySelectorAll('#visits tbody tr').forEach(tr => tr.classList.remove('selected'));
-    const tr = document.getElementById('v-' + id);
-    if(tr) tr.classList.add('selected');
-
-    detailEmpty.classList.add('d-none');
-    detailPane.classList.remove('d-none');
-    detailName.innerText = `${val(v,'FirstName','firstName')} ${val(v,'LastName','lastName')}`;
-    detailEmail.innerText = val(v,'Email','email');
-    detailQr.innerText = val(v,'QrKey','qrKey');
-    detailIn.innerText = fmt(val(v,'CheckInTime','checkInTime'));
-    detailOut.innerText = fmt(val(v,'CheckOutTime','checkOutTime'));
-
-    if (val(v,'CheckOutTime','checkOutTime')) {
-        detailCheckoutBtn.disabled = true;
-        detailCheckoutBtn.innerText = 'Uscita registrata';
-    } else {
-        detailCheckoutBtn.disabled = false;
-        detailCheckoutBtn.innerText = 'Segna uscita';
-        detailCheckoutBtn.onclick = () => checkoutVisit(id, detailCheckoutBtn);
-    }
-
-    // bind edit / delete in detail pane (these elements exist in the page)
-    const detailEditBtn = document.getElementById('detailEditBtn');
-    const detailDeleteBtn = document.getElementById('detailDeleteBtn');
-    if(detailEditBtn) detailEditBtn.onclick = () => openEditInDetail(id, v);
-    if(detailDeleteBtn) detailDeleteBtn.onclick = () => deleteVisit(id, detailDeleteBtn);
+// query string builder semplice
+function buildQuery() {
+    var p = [];
+    var q = (filterSearch && filterSearch.value || '').trim();
+    if (q) p.push('q=' + encodeURIComponent(q));
+    if (filterStart && filterStart.value) p.push('start=' + encodeURIComponent(filterStart.value));
+    if (filterEnd && filterEnd.value) p.push('end=' + encodeURIComponent(filterEnd.value));
+    if (filterPresent && filterPresent.checked) p.push('presentOnly=true');
+    return p.length ? ('?' + p.join('&')) : '';
 }
 
-function addOrUpdateRow(v) {
+// SignalR (rimane identico nel comportamento)
+var connection = new signalR.HubConnectionBuilder().withUrl('/templateHub').build();
+connection.on('NewVisit', function(v){ renderRow(v); });
+connection.on('UpdateVisit', function(v){ renderRow(v); });
+connection.start().then(function(){ console.debug('SignalR connected'); }).catch(function(e){ console.warn('SignalR failed', e); });
+
+// attach eventi bottoni
+if (applyFiltersBtn) applyFiltersBtn.addEventListener('click', loadVisits);
+if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', function(){ if (filterSearch) filterSearch.value=''; if(filterStart) filterStart.value=''; if(filterEnd) filterEnd.value=''; if(filterPresent) filterPresent.checked=false; loadVisits(); });
+if (exportBtn) exportBtn.addEventListener('click', function(){ window.location = '/api/visits/export' + buildQuery(); });
+if (exportBtn2) exportBtn2.addEventListener('click', function(){ window.location = '/api/visits/export' + buildQuery(); });
+
+// rendering della riga (semplice, sovrascrive innerHTML)
+function renderRow(v) {
     if (!v) return;
-    const id = val(v,'Id','id') || val(v,'id','Id');
-    if(!id) return;
-    let tr = document.getElementById('v-' + id);
-    const isNew = !tr;
-    if (isNew) {
-        tr = document.createElement('tr');
-        tr.id = 'v-' + id;
-        tbody.prepend(tr);
+    var id = getField(v,'Id','id') || getField(v,'id','Id');
+    if (!id) return;
+    var row = document.getElementById('v-' + id);
+    var isNew = false;
+    if (!row) {
+        row = document.createElement('tr');
+        row.id = 'v-' + id;
+        tableBody.insertBefore(row, tableBody.firstChild);
+        isNew = true;
     }
-    const QrKey = val(v,'QrKey','qrKey');
-    const Email = val(v,'Email','email');
-    const FirstName = val(v,'FirstName','firstName');
-    const LastName = val(v,'LastName','lastName');
-    const CheckInTime = val(v,'CheckInTime','checkInTime');
-    const CheckOutTime = val(v,'CheckOutTime','checkOutTime');
+    var qr = escapeHtml(getField(v,'QrKey','qrKey'));
+    var email = escapeHtml(getField(v,'Email','email'));
+    var first = escapeHtml(getField(v,'FirstName','firstName'));
+    var last = escapeHtml(getField(v,'LastName','lastName'));
+    var cin = formatDate(getField(v,'CheckInTime','checkInTime'));
+    var cout = formatDate(getField(v,'CheckOutTime','checkOutTime'));
 
-    tr.innerHTML = `
-        <td style="min-width:220px">${id}</td>
-        <td>${QrKey}</td>
-        <td>${Email}</td>
-        <td>${FirstName}</td>
-        <td>${LastName}</td>
-        <td>${fmt(CheckInTime)}</td>
-        <td>${fmt(CheckOutTime)}</td>
-        <td>
-            ${ CheckOutTime ? 
-                '<button class="btn btn-sm btn-outline-secondary" disabled>Uscito</button>' :
-                `<button class="btn btn-sm btn-danger" onclick="checkoutVisit('${id}', this)">Segna uscita</button>`
-            }
-        </td>
-    `;
+    var actionsHtml = '';
+    if (cout) {
+        actionsHtml += '<button class="btn btn-sm btn-outline-secondary" disabled>Uscito</button>';
+    } else {
+        actionsHtml += '<button class="btn btn-sm btn-danger" onclick="checkoutVisit(\'' + id + '\', this)">Segna uscita</button>';
+    }
 
-    tr.onclick = () => rowClickHandler(id, v);
+    row.innerHTML = ''
+        + '<td style="min-width:220px">' + id + '</td>'
+        + '<td>' + qr + '</td>'
+        + '<td>' + email + '</td>'
+        + '<td>' + first + '</td>'
+        + '<td>' + last + '</td>'
+        + '<td>' + cin + '</td>'
+        + '<td>' + cout + '</td>'
+        + '<td>' + actionsHtml + '</td>';
+
+    // bind click per dettaglio (usa i dati ricevuti)
+    row.onclick = function(){ openDetail(id, v); };
 
     updateStats();
 }
 
-async function checkoutVisit(id, btnEl) {
+// apre pannello dettaglio dai dati (non fa fetch)
+function openDetail(id, v) {
+    selectedId = id;
+    var rows = document.querySelectorAll('#visits tbody tr');
+    for (var i=0;i<rows.length;i++) rows[i].classList.remove('selected');
+    var r = document.getElementById('v-' + id);
+    if (r) r.classList.add('selected');
+
+    if (detailEmpty) detailEmpty.classList.add('d-none');
+    if (detailPane) detailPane.classList.remove('d-none');
+
+    if (detailName) detailName.innerText = getField(v,'FirstName','firstName') + ' ' + getField(v,'LastName','lastName');
+    if (detailEmail) detailEmail.innerText = getField(v,'Email','email');
+    if (detailQr) detailQr.innerText = getField(v,'QrKey','qrKey');
+    if (detailIn) detailIn.innerText = formatDate(getField(v,'CheckInTime','checkInTime'));
+    if (detailOut) detailOut.innerText = formatDate(getField(v,'CheckOutTime','checkOutTime'));
+
+    if (detailCheckoutBtn) {
+        if (getField(v,'CheckOutTime','checkOutTime')) {
+            detailCheckoutBtn.disabled = true; detailCheckoutBtn.innerText = 'Uscita registrata';
+        } else {
+            detailCheckoutBtn.disabled = false; detailCheckoutBtn.innerText = 'Segna uscita';
+            detailCheckoutBtn.onclick = function(){ checkoutVisit(id, detailCheckoutBtn); };
+        }
+    }
+    // bind edit/delete in pane
+    var editBtn = document.getElementById('detailEditBtn');
+    var deleteBtn = document.getElementById('detailDeleteBtn');
+    if (editBtn) editBtn.onclick = function(){ openEditInDetail(id, v); };
+    if (deleteBtn) deleteBtn.onclick = function(){ deleteVisit(id, deleteBtn); };
+}
+
+// called by row buttons
+function openRowEdit(id) {
+    var row = document.getElementById('v-' + id);
+    if (!row) return;
+    var cells = row.getElementsByTagName('td');
+    var v = {
+        Id: id,
+        QrKey: cells[1] ? cells[1].innerText : '',
+        Email: cells[2] ? cells[2].innerText : '',
+        FirstName: cells[3] ? cells[3].innerText : '',
+        LastName: cells[4] ? cells[4].innerText : '',
+        CheckInTime: cells[5] ? cells[5].innerText : '',
+        CheckOutTime: cells[6] ? cells[6].innerText : ''
+    };
+    openEditInDetail(id, v);
+}
+
+// checkout (POST)
+function checkoutVisit(id, btn) {
     try {
-        btnEl.disabled = true;
-        btnEl.innerText = '⏳';
-        const res = await fetch(`/api/visits/${id}/checkout`, { method: 'POST', credentials: 'same-origin' });
-        if (!res.ok) {
-            console.warn('Checkout failed', res.status);
-            btnEl.disabled = false;
-            return;
-        }
-        const updated = await res.json();
-        addOrUpdateRow(updated);
-        if(selectedId === id) rowClickHandler(id, updated);
-    } catch (e) {
-        console.error(e);
-    }
+        if (btn) { btn.disabled = true; btn.innerText = '⏳'; }
+        fetch('/api/visits/' + encodeURIComponent(id) + '/checkout', { method: 'POST', credentials: 'same-origin' })
+            .then(function(res){
+                if (!res.ok) {
+                    console.warn('checkout failed', res.status);
+                    if (btn) { btn.disabled = false; }
+                    return null;
+                }
+                return res.json();
+            })
+            .then(function(updated){
+                if (updated) renderRow(updated);
+            })
+            .catch(function(err){ console.error(err); if (btn) btn.disabled=false; });
+    } catch(e) { console.error(e); if (btn) btn.disabled=false; }
 }
 
-async function loadExistingVisits() {
-    try {
-        const qs = buildQueryParams();
-        const url = '/api/visits' + (qs ? '?' + qs : '');
-        console.debug('[Reception] loadExistingVisits ->', url);
-        const res = await fetch(url, { credentials: 'same-origin' });
-        if (!res.ok) {
-            console.warn('Failed to load persisted visits', res.status);
-            return;
-        }
-        const arr = await res.json();
-        tbody.innerHTML = '';
-        if (Array.isArray(arr)) {
-            for (let i = 0; i < arr.length; i++) addOrUpdateRow(arr[i]);
-        }
-        updateStats();
-    } catch (e) {
-        console.error(e);
-    }
-}
-
-function updateStats() {
-    const rows = Array.from(document.querySelectorAll('#visits tbody tr'));
-    totalRecordsEl.innerText = rows.length;
-    const present = rows.reduce((acc, tr) => {
-        const usc = tr.querySelectorAll('td')[6]?.innerText?.trim();
-        return acc + (usc ? 0 : 1);
-    }, 0);
-    presentNowEl.innerText = present;
-    visitCountEl.innerText = `Visitatori attualmente presenti: ${present}`;
-    const firstRow = rows[0];
-    if (firstRow) {
-        const lastIn = firstRow.querySelectorAll('td')[5]?.innerText || '';
-        lastCheckinEl.innerText = lastIn;
-    } else {
-        lastCheckinEl.innerText = '-';
-    }
-    document.getElementById('detailEmpty').classList.toggle('d-none', rows.length > 0 && selectedId);
-}
-
-// open inline edit in detail pane
+// edit in detail pane
 function openEditInDetail(id, v){
     selectedId = id;
-    detailEmpty.classList.add('d-none');
-    detailPane.classList.remove('d-none');
-    detailName.innerHTML = `<input id="edit-first" class="form-control form-control-sm" value="${escapeHtml(valueOf(v,'FirstName','firstName'))}" />`;
-    detailEmail.innerHTML = `<input id="edit-email" class="form-control form-control-sm" value="${escapeHtml(valueOf(v,'Email','email'))}" />`;
-    detailQr.innerHTML = `<input id="edit-qr" class="form-control form-control-sm" value="${escapeHtml(valueOf(v,'QrKey','qrKey'))}" />`;
-    // hide checkout while editing
-    detailCheckoutBtn.style.display = 'none';
-    // add save / cancel
-    const save = document.createElement('button'); save.className='btn btn-success btn-sm'; save.innerText='Salva';
-    save.onclick = async () => await saveEdits(id);
-    const cancel = document.createElement('button'); cancel.className='btn btn-outline-secondary btn-sm'; cancel.innerText='Annulla';
-    cancel.onclick = () => { loadExistingVisits(); };
-    const actions = detailCheckoutBtn.parentElement;
-    actions.appendChild(save);
-    actions.appendChild(cancel);
-}
+    if (detailEmpty) detailEmpty.classList.add('d-none');
+    if (detailPane) detailPane.classList.remove('d-none');
+    if (detailName) detailName.innerHTML = '<input id="edit-first" class="form-control form-control-sm" value="' + escapeHtml(getField(v,'FirstName','firstName')) + '" />';
+    if (detailEmail) detailEmail.innerHTML = '<input id="edit-email" class="form-control form-control-sm" value="' + escapeHtml(getField(v,'Email','email')) + '" />';
+    if (detailQr) detailQr.innerHTML = '<input id="edit-qr" class="form-control form-control-sm" value="' + escapeHtml(getField(v,'QrKey','qrKey')) + '" />';
+    if (detailCheckoutBtn) detailCheckoutBtn.style.display = 'none';
 
-// send PUT to update
-async function saveEdits(id){
-    try{
-        console.debug('[API] saveEdits id=', id);
-        const payload = {
-            FirstName: document.getElementById('edit-first')?.value || '',
-            Email: document.getElementById('edit-email')?.value || '',
-            QrKey: document.getElementById('edit-qr')?.value || ''
-        };
-        const url = '/api/visits/' + encodeURIComponent(id);
-        console.debug('[API] PUT', url, payload);
-        const res = await fetch(url, { method:'PUT', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-        console.debug('[API] PUT response', res.status);
-        if(!res.ok){ const body = await res.text().catch(()=>null); alert('Salvataggio fallito: ' + (body || res.status)); return; }
-        const updated = await res.json();
-        addOrUpdateRow(updated);
-        rowClickHandler(id, updated);
-    }catch(e){ console.error(e); alert('Errore salvataggio'); }
-    finally{
-        detailCheckoutBtn.style.display = '';
-        const actions = detailCheckoutBtn.parentElement;
-        Array.from(actions.querySelectorAll('button')).forEach(b => { if(b.innerText === 'Salva' || b.innerText === 'Annulla') b.remove(); });
+    var actions = detailCheckoutBtn ? detailCheckoutBtn.parentElement : null;
+    if (actions) {
+        var save = document.createElement('button'); save.className='btn btn-success btn-sm'; save.innerText='Salva';
+        save.onclick = function(){ saveEdits(id); };
+        var cancel = document.createElement('button'); cancel.className='btn btn-outline-secondary btn-sm'; cancel.innerText='Annulla';
+        cancel.onclick = function(){ loadVisits(); };
+        actions.appendChild(save); actions.appendChild(cancel);
     }
 }
 
-// send DELETE to remove
-async function deleteVisit(id, btn){
-    if(!confirm('Eliminare questa entry?')) return;
-    try{
-        console.debug('[API] deleteVisit id=', id);
-        btn.disabled = true;
-        const url = '/api/visits/' + encodeURIComponent(id);
-        console.debug('[API] DELETE', url);
-        const res = await fetch(url, { method:'DELETE', credentials:'same-origin' });
-        console.debug('[API] DELETE response', res.status);
-        if(!res.ok){ const body = await res.text().catch(()=>null); console.warn('[API] DELETE failed', res.status, body); alert('Eliminazione fallita: ' + (body || res.status)); btn.disabled=false; return; }
-        const tr = document.getElementById('v-' + id); if(tr) tr.remove();
-        if(selectedId === id){ selectedId = null; detailPane.classList.add('d-none'); detailEmpty.classList.remove('d-none'); }
-        updateStats();
-    }catch(e){ console.error(e); alert('Errore eliminazione'); if(btn) btn.disabled=false; }
+// save edits (PUT)
+function saveEdits(id) {
+    try {
+        var first = document.getElementById('edit-first') ? document.getElementById('edit-first').value : '';
+        var email = document.getElementById('edit-email') ? document.getElementById('edit-email').value : '';
+        var qr = document.getElementById('edit-qr') ? document.getElementById('edit-qr').value : '';
+        var payload = { FirstName: first, Email: email, QrKey: qr };
+
+        fetch('/api/visits/' + encodeURIComponent(id), {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(function(res){
+            if (!res.ok) return res.text().then(function(t){ throw new Error(t || res.status); });
+            return res.json();
+        })
+        .then(function(updated){
+            renderRow(updated);
+            openDetail(id, updated);
+        })
+        .catch(function(err){ alert('Salvataggio fallito: ' + err.message); })
+        .finally(function(){
+            if (detailCheckoutBtn) detailCheckoutBtn.style.display = '';
+            var actions = detailCheckoutBtn ? detailCheckoutBtn.parentElement : null;
+            if (actions) {
+                var btns = actions.getElementsByTagName('button');
+                for (var i = btns.length-1; i >=0; i--) {
+                    if (btns[i].innerText === 'Salva' || btns[i].innerText === 'Annulla') actions.removeChild(btns[i]);
+                }
+            }
+        });
+    } catch(e) { console.error(e); alert('Errore salvataggio'); }
 }
 
-function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function valueOf(o,a,b){ return (o && (o[a] ?? o[b])) ?? ''; }
+// delete (DELETE)
+function deleteVisit(id, btn) {
+    if (!confirm('Eliminare questa entry?')) return;
+    try {
+        if (btn) btn.disabled = true;
+        fetch('/api/visits/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' })
+            .then(function(res){
+                if (!res.ok) return res.text().then(function(t){ throw new Error(t || res.status); });
+                var row = document.getElementById('v-' + id);
+                if (row && row.parentNode) row.parentNode.removeChild(row);
+                if (selectedId === id) { selectedId = null; if (detailPane) detailPane.classList.add('d-none'); if (detailEmpty) detailEmpty.classList.remove('d-none'); }
+                updateStats();
+            })
+            .catch(function(err){ alert('Eliminazione fallita: ' + err.message); if (btn) btn.disabled = false; });
+    } catch(e) { console.error(e); if (btn) btn.disabled = false; }
+}
 
-loadExistingVisits();
+// load list from server
+function loadVisits() {
+    try {
+        var qs = buildQuery();
+        var url = '/api/visits' + qs;
+        fetch(url, { credentials: 'same-origin' })
+            .then(function(res){
+                if (!res.ok) { console.warn('Failed to load visits', res.status); return null; }
+                return res.json();
+            })
+            .then(function(arr){
+                if (!arr) return;
+                tableBody.innerHTML = '';
+                for (var i=0;i<arr.length;i++) renderRow(arr[i]);
+                updateStats();
+            })
+            .catch(function(err){ console.error(err); });
+    } catch(e) { console.error(e); }
+}
+
+// update counters
+function updateStats() {
+    var rows = tableBody.getElementsByTagName('tr');
+    totalRecordsEl.innerText = rows.length;
+    var present = 0;
+    for (var i=0;i<rows.length;i++) {
+        var usc = rows[i].getElementsByTagName('td')[6];
+        if (!usc || !usc.innerText.trim()) present++;
+    }
+    presentNowEl.innerText = present;
+    visitCountEl.innerText = 'Visitatori attualmente presenti: ' + present;
+    var first = tableBody.getElementsByTagName('tr')[0];
+    lastCheckinEl.innerText = first ? (first.getElementsByTagName('td')[5].innerText || '-') : '-';
+}
+
+// helpers
+function valueOf(o,a,b){ return getField(o,a,b); }
+
+loadVisits();
