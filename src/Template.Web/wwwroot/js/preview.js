@@ -13,7 +13,6 @@
         });
     });
 
-    // debug-link: fetch the debug page, extract the URL and redirect to it
     document.querySelectorAll('.debug-link').forEach(link => {
         link.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -22,10 +21,9 @@
             try {
                 const res = await fetch(dbg, { credentials: 'same-origin' });
                 const txt = await res.text();
-                // try to find first http(s) URL in the returned content
+
                 const m = txt.match(/https?:\/\/[^\s"'<>]+/i);
                 if (m && m[0]) {
-                    // if the URL is relative to this origin, it's fine; otherwise open directly
                     window.location.href = m[0];
                 } else {
                     alert('URL di debug non trovato nella risposta.');
