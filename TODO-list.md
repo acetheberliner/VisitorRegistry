@@ -11,11 +11,11 @@
 
 + CRUD entry
 + check-out msg
-+ date picker
-+ Badge verdi “Presente"
++ date picker [FATTO]
++ Badge verdi “Presente" [FATTO]
 + da quanto tempo è dentro
 + Excel migliorato con formattazione, colori, bold, date/time
-+ Notifiche chek-in 
++ Notifiche chek-in
 + Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?))
 + Picchi orari per reception
 
@@ -30,7 +30,7 @@
   + colori coerenti (ONIT(?)/Brand Fittizio)
   + soft animations
   + accessibilità:
-  	+ form validi
+	+ form validi
 	+ labels corrette
 	+ focus corretti
 	+ ...
