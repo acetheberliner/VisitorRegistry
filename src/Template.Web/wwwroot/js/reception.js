@@ -85,7 +85,7 @@ function renderRow(v) {
     if (cout) {
         actionsHtml += '<button class="btn btn-sm btn-outline-secondary" disabled>Uscito</button>';
     } else {
-        actionsHtml += '<button class="btn btn-sm btn-danger" onclick="checkoutVisit(\'' + id + '\', this)">Segna uscita</button>';
+        actionsHtml += '<button class="btn btn-sm btn-success" onclick="openDetail(\'' + id + '\', this)">Presente</button>';
     }
 
     row.innerHTML = ''
