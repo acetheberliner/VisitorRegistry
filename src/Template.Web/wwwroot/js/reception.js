@@ -89,7 +89,6 @@ function renderRow(v) {
     }
 
     row.innerHTML = ''
-        + '<td style="min-width:220px">' + id + '</td>'
         + '<td>' + qr + '</td>'
         + '<td>' + email + '</td>'
         + '<td>' + first + '</td>'
