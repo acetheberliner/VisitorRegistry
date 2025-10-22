@@ -2,10 +2,10 @@
 
 ## FATTO
 
-+ Filtri reception
-+ Realizzare QR funzionanti
-+ migliorare pagina QR
-+ migliorare login
++ Filtri reception [FATTO]
++ Realizzare QR funzionanti [FATTO]
++ migliorare pagina QR [FATTO]
++ migliorare login [FATTO]
 
 ## DA FARE
 
@@ -13,7 +13,7 @@
 + check-out msg
 + date picker [FATTO]
 + Badge verdi “Presente" [FATTO]
-+ da quanto tempo è dentro
++ da quanto tempo è dentro  [FATTO]
 + Excel migliorato con formattazione, colori, bold, date/time
 + Notifiche chek-in
 + Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?))
