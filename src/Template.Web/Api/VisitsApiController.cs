@@ -252,7 +252,7 @@ namespace Template.Web.Api
                 using var ms = new MemoryStream();
                 wb.SaveAs(ms);
                 ms.Seek(0, SeekOrigin.Begin);
-                var fileName = $"visits_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+                var fileName = $"visite-{DateTime.UtcNow:dd_MM_yyyy}.xlsx";
                 return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (Exception ex)
