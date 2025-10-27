@@ -1,5 +1,33 @@
 @model Template.Web.Features.Visitor.VisitorSummaryModel
 
+@{
+	// Genera un codice breve a partire dal Guid (5 caratteri alfanumerici)
+	string guidStr = Model?.Id.ToString() ?? Guid.NewGuid().ToString();
+	string ShortFromGuid(string g)
+	{
+		try
+		{
+			var bytes = Guid.Parse(g).ToByteArray();
+			// Prendiamo 6 bytes e costruiamo un valore numerico
+			ulong val = 0;
+			for (int i = 0; i < 6; i++) val = (val << 8) | bytes[i];
+			const string alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+			var sb = new System.Text.StringBuilder();
+			// convert to base (36) and build at least 5 chars
+			while (sb.Length < 5)
+			{
+				var idx = (int)(val % (ulong)alphabet.Length);
+				sb.Insert(0, alphabet[idx]);
+				val /= (ulong)alphabet.Length;
+				if (val == 0) val = (ulong)((DateTime.UtcNow.Ticks) & 0xFFFFFFFFFFFF); // fallback entropy
+			}
+			return sb.ToString().Substring(0,5);
+		}
+		catch { return guidStr.Substring(0,5).ToUpperInvariant(); }
+	}
+	var shortCode = ShortFromGuid(guidStr);
+}
+
 <!-- Aggiunto: font e stili coerenti con Reception/Visitor -->
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -18,7 +46,7 @@
         box-shadow: 0 8px 20px rgba(15,23,42,0.06);
         border: 1px solid rgba(15,23,42,0.04);
     }
-    .card .card-body { border-radius:10px; padding:1.4rem; }
+    .card .card-body { border-radius:10px; padding:1.4rem; background: #fff; } /* FORZA sfondo bianco visibile */
 
     .badge-success {
         background: transparent;
@@ -31,14 +59,14 @@
 
     .muted-small { color:#6b7280; font-size:.95rem; }
     .btn { border-radius:10px; }
-    .btn-success { ; border: none; color:#fff; }
+    .btn-primary { background: #FF5A3C; color: #fff; border: none; }
 </style>
 
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
         <div class="col-12 col-sm-10 col-md-8 col-lg-6">
             <div class="card shadow-sm">
-                <div class="card-body text-center">
+                <div class="card-body text-center" id="receiptCard">
                     <div class="mb-3">
                         <span class="badge-success">✅ Confermato</span>
                     </div>
@@ -48,16 +76,19 @@
 
                     <div class="text-start mx-auto" style="max-width:420px;">
                         <dl class="row">
-                            <dt class="col-3 muted-small object-fit-scale">ID visita</dt>
-                            <dd class="col-9 px-0">@Model?.Id</dd>
+                            <dt class="col-5 muted-small object-fit-scale">Codice</dt>
+                            <dd class="col-7 px-0" id="shortCode">@shortCode</dd>
+                            <dt class="col-4 muted-small object-fit-scale">ID visita</dt>
+                            <dd class="col-8 px-0 muted-small" id="fullGuid" title="@guidStr">@guidStr</dd>
                         </dl>
                         <div class="muted-small text-center">Riceverai eventuali comunicazioni all'indirizzo fornito.</div>
                     </div>
 
-                    @* <div class="d-flex gap-2 mt-4 justify-content-center">
-                        <button type="button" class="btn btn-success" onclick="window.print()">Stampa ricevuta</button>
-                        <a href="/" class="btn btn-outline-secondary" style="border-radius:10px; padding:.55rem .9rem;">Torna alla home</a>
-                    </div> *@
+                    <div class="d-flex gap-2 mt-4 justify-content-center">
+                        <button id="downloadReceiptBtn" type="button" class="btn btn-primary" style="border-radius:10px; padding:.55rem .9rem;">
+                            Scarica ricevuta login
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -65,3 +96,52 @@
         </div>
     </div>
 </div>
+
+<!-- html2canvas CDN + script per scaricare la ricevuta come immagine -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+(function(){
+    var btn = document.getElementById('downloadReceiptBtn');
+    if (!btn) return;
+
+    function filenameSafe(s){ return String(s||'receipt').replace(/[^a-z0-9_\-]/gi,'_').toLowerCase(); }
+
+    btn.addEventListener('click', function(){
+        var card = document.getElementById('receiptCard');
+        if (!card) { alert('Elemento ricevuta non trovato.'); return; }
+
+        // nascondi il bottone prima dello screen (per evitare che appaia)
+        var origDisplay = btn.style.display;
+        btn.style.display = 'none';
+
+        // qualità su mobile
+        var scale = Math.max(1, window.devicePixelRatio || 1);
+
+        html2canvas(card, {
+            scale: scale,
+            useCORS: true,
+            backgroundColor: '#ffffff' // FORZA sfondo bianco nel PNG
+        }).then(function(canvas){
+            try {
+                var idText = document.getElementById('shortCode') ? document.getElementById('shortCode').innerText : '';
+                var ts = new Date().toISOString().replace(/[:.]/g,'-');
+                var fname = 'ricevuta-' + filenameSafe(idText) + '.png';
+                canvas.toBlob(function(blob){
+                    var a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = fname;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                }, 'image/png');
+            } finally {
+                btn.style.display = origDisplay;
+            }
+        }).catch(function(err){
+            btn.style.display = origDisplay;
+            console.error('Errore generazione immagine ricevuta', err);
+            alert('Si è verificato un errore durante la generazione della ricevuta.');
+        });
+    });
+})();
+</script>
