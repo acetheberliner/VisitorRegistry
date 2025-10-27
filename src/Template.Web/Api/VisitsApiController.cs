@@ -29,6 +29,24 @@ namespace Template.Web.Api
             _publisher = publisher;
         }
 
+        // Helper: genera ShortCode di 5 caratteri da un Guid (caratteri A-Z0-9)
+        private static string ShortFromGuid(Guid id)
+        {
+            const string alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            var bytes = id.ToByteArray();
+            ulong val = 0;
+            for (int i = 0; i < 6; i++) val = (val << 8) | bytes[i];
+            var sb = new System.Text.StringBuilder();
+            while (sb.Length < 5)
+            {
+                var idx = (int)(val % (ulong)alphabet.Length);
+                sb.Insert(0, alphabet[idx]);
+                val /= (ulong)alphabet.Length;
+                if (val == 0) val = (ulong)(DateTime.UtcNow.Ticks & 0xFFFFFFFFFFFF);
+            }
+            return sb.ToString().Substring(0, 5);
+        }
+
         // GET with filters/paging
         [HttpGet]
         [AllowAnonymous]
@@ -60,11 +78,24 @@ namespace Template.Web.Api
             page = Math.Max(1, page);
             pageSize = Math.Clamp(pageSize, 1, 1000);
 
-            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).Select(x => new { x.Id, x.QrKey, x.Email, x.FirstName, x.LastName, x.CheckInTime, x.CheckOutTime }).ToListAsync();
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
-            _logger?.LogInformation("/api/visits returning {Count} items (q={q}, start={start}, end={end}, presentOnly={presentOnly})", items.Count, q, start, end, presentOnly);
+            // restituisci DTO comprensivo di ShortCode
+            var dto = items.Select(x => new
+            {
+                x.Id,
+                ShortCode = ShortFromGuid(x.Id),
+                x.QrKey,
+                x.Email,
+                x.FirstName,
+                x.LastName,
+                x.CheckInTime,
+                x.CheckOutTime
+            }).ToList();
 
-            return Ok(items);
+            _logger?.LogInformation("/api/visits returning {Count} items (q={q}, start={start}, end={end}, presentOnly={presentOnly})", dto.Count, q, start, end, presentOnly);
+
+            return Ok(dto);
         }
 
         // Export XLSX (uses same filters)
@@ -100,12 +131,11 @@ namespace Template.Web.Api
                 using var wb = new XLWorkbook();
                 var ws = wb.Worksheets.Add("Visits");
 
-                // Intestazioni colonne
-                var headers = new[] { "ID Accesso", "QR", "E-mail", "Nome", "Cognome", "Check-in", "Check-out", "Durata visita" };
-                for (int c = 0; c < headers.Length; c++)
-                    ws.Cell(1, c + 1).Value = headers[c];
+                // headers: mostriamo il codice breve invece del GUID
+                var headers = new[] { "Codice", "QR", "E-mail", "Nome", "Cognome", "Check-in", "Check-out", "Durata visita" };
+                for (int c = 0; c < headers.Length; c++) ws.Cell(1, c + 1).Value = headers[c];
 
-                // formattazione durata
+                // helper durata (esistente)
                 string FormatDuration(TimeSpan d)
                 {
                     if (d.TotalSeconds < 1) return "0s";
@@ -121,7 +151,9 @@ namespace Template.Web.Api
                 {
                     var r = items[i];
                     var row = i + 2;
-                    ws.Cell(row, 1).Value = r.Id.ToString();
+
+                    // usa ShortCode al posto di Guid per la colonna "Codice"
+                    ws.Cell(row, 1).Value = ShortFromGuid(r.Id);
                     ws.Cell(row, 2).Value = r.QrKey;
                     ws.Cell(row, 3).Value = r.Email;
                     ws.Cell(row, 4).Value = r.FirstName;
@@ -141,7 +173,6 @@ namespace Template.Web.Api
                     }
                     else ws.Cell(row, 7).Value = "";
 
-                    // Se checkout mancante => vuoto, altrimenti  usa checkout
                     if (r.CheckInTime != default)
                     {
                         var endDt = r.CheckOutTime ?? DateTime.UtcNow;
@@ -159,12 +190,11 @@ namespace Template.Web.Api
                 table.Theme = XLTableTheme.None;
                 table.ShowAutoFilter = true;
 
-                // stile header
                 var headerRange = ws.Range(1, 1, 1, headers.Length);
                 headerRange.Style.Font.Bold = true;
                 headerRange.Style.Font.FontSize = 11;
                 headerRange.Style.Font.FontColor = XLColor.White;
-                headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#7E3434"); // dark muted red
+                headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#7E3434");
                 headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                 headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
@@ -228,7 +258,6 @@ namespace Template.Web.Api
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Export XLSX failed");
-                // restituisco 500 con messaggio semplice per debug (in produzione potresti nascondere l'eccezione)
                 return StatusCode(500, "Errore durante la generazione dell'export: " + ex.Message);
             }
         }
@@ -243,20 +272,20 @@ namespace Template.Web.Api
 
             if (v.CheckOutTime != null)
             {
-                // already checked out — return current state
-                return Ok(new { v.Id, v.QrKey, v.Email, v.FirstName, v.LastName, v.CheckInTime, v.CheckOutTime });
+                // return current state including ShortCode
+                return Ok(new { v.Id, ShortCode = ShortFromGuid(v.Id), v.QrKey, v.Email, v.FirstName, v.LastName, v.CheckInTime, v.CheckOutTime });
             }
 
             v.CheckOutTime = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
-            var dto = new { v.Id, v.QrKey, v.Email, v.FirstName, v.LastName, v.CheckInTime, v.CheckOutTime };
+            var dto = new { v.Id, ShortCode = ShortFromGuid(v.Id), v.QrKey, v.Email, v.FirstName, v.LastName, v.CheckInTime, v.CheckOutTime };
 
             try
             {
                 _publisher?.Publish(new Template.Web.SignalR.Hubs.Events.UpdateVisitEvent { IdGroup = Guid.Empty, VisitDto = dto });
             }
-            catch{}
+            catch { }
 
             return Ok(dto);
         }

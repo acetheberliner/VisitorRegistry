@@ -253,17 +253,67 @@ document.addEventListener('DOMContentLoaded', function () {
 		return p.length ? ('?' + p.join('&')) : '';
 	}
 
-	// render della riga (compatto)
+	// genera ShortCode client-side da GUID (fallback)
+	function generateShortFromGuid(g) {
+		try {
+			var alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+			var hex = String(g).replace(/[^0-9a-fA-F]/g, '');
+			// se non è un guid, ritorna parte iniziale
+			if (hex.length < 12) return (g + '').toString().substring(0, 5).toUpperCase();
+			// prendi primi 6 byte
+			var val = 0n;
+			for (var i = 0; i < 12; i += 2) {
+				val = (val << 8n) | BigInt(parseInt(hex.substr(i, 2), 16));
+			}
+			var sb = '';
+			while (sb.length < 5) {
+				var idx = Number(val % BigInt(alphabet.length));
+				sb = alphabet[idx] + sb;
+				val = val / BigInt(alphabet.length);
+				if (val === 0n) val = BigInt(Date.now() & 0xFFFFFFFFFFFF);
+			}
+			return sb.substr(0, 5);
+		} catch (e) { return (String(g)).substr(0, 5).toUpperCase(); }
+	}
+
+	// rendering della riga (modificata per mostrare ShortCode se presente)
 	function renderRow(v) {
 		if (!v) return;
-		var id = getField(v, 'Id', 'id') || getField(v, 'id', 'Id'); if (!id) return;
+		var id = getField(v, 'Id', 'id') || getField(v, 'id', 'Id');
+		if (!id) return;
 		var row = document.getElementById('v-' + id);
-		if (!row) { row = document.createElement('tr'); row.id = 'v-' + id; if (tableBody) tableBody.insertBefore(row, tableBody.firstChild); }
-		var qr = escapeHtml(getField(v, 'QrKey', 'qrKey')), email = escapeHtml(getField(v, 'Email', 'email')), first = escapeHtml(getField(v, 'FirstName', 'firstName')), last = escapeHtml(getField(v, 'LastName', 'lastName')), cin = formatDate(getField(v, 'CheckInTime', 'checkInTime')), cout = formatDate(getField(v, 'CheckOutTime', 'checkOutTime'));
+		if (!row) {
+			row = document.createElement('tr');
+			row.id = 'v-' + id;
+			if (tableBody) tableBody.insertBefore(row, tableBody.firstChild);
+		}
+		var qr = escapeHtml(getField(v, 'QrKey', 'qrKey'));
+		var email = escapeHtml(getField(v, 'Email', 'email'));
+		var first = escapeHtml(getField(v, 'FirstName', 'firstName'));
+		var last = escapeHtml(getField(v, 'LastName', 'lastName'));
+		var cin = formatDate(getField(v, 'CheckInTime', 'checkInTime'));
+		var cout = formatDate(getField(v, 'CheckOutTime', 'checkOutTime'));
+
+		// short code: preferisci ShortCode, altrimenti fallback dal GUID
+		var short = getField(v, 'ShortCode', 'shortCode') || generateShortFromGuid(id);
+
+		// mostro il codice breve come piccolo badge sopra il QR (non sostituisco QrKey)
+		var qrHtml = '<div style="font-size:0.9rem;color:#6b7280">#' + qr + '</div><div>' + escapeHtml(short) + '</div>';
+
 		var actionsHtml = '';
 		if (cout) actionsHtml += '<button class="btn btn-sm btn-outline-secondary" disabled>Uscito</button>'; else actionsHtml += '<button class="btn btn-sm btn-success" onclick="openDetailFromRow(\'' + id + '\')">Presente</button>';
-		row.innerHTML = '' + '<td>' + qr + '</td>' + '<td>' + email + '</td>' + '<td>' + first + '</td>' + '<td>' + last + '</td>' + '<td>' + cin + '</td>' + '<td>' + cout + '</td>' + '<td>' + actionsHtml + '</td>';
+
+		row.innerHTML = ''
+			+ '<td>' + qrHtml + '</td>'
+			+ '<td>' + email + '</td>'
+			+ '<td>' + first + '</td>'
+			+ '<td>' + last + '</td>'
+			+ '<td>' + cin + '</td>'
+			+ '<td>' + cout + '</td>'
+			+ '<td>' + actionsHtml + '</td>';
+
 		row.onclick = function () { openDetail(id, v); };
+
 		updateStats();
 	}
 
