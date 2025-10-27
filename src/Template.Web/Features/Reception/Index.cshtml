@@ -40,7 +40,7 @@
                 <div class="col-sm-4">
                     <div class="card shadow-sm">
                         <div class="card-body">
-                            <small class="text-muted">Totale registri</small>
+                            <small class="text-muted">Totale registrati</small>
                             <div id="totalRecords" class="h6 mb-0">0</div>
                         </div>
                     </div>
@@ -139,14 +139,14 @@
 </div>
 
 @section scripts {
-    <style>
-        /* small visual helpers */
-        .card .card-body small { color: #6b7280; }
-        tr.selected { background: linear-gradient(90deg, rgba(99,102,241,0.06), rgba(255,255,255,0)); }
-    </style>
+    <!-- global base path per JS (evita 404 se l'app è montata su subpath) -->
+    <script>
+        // APP_BASE termina con '/' (es. "/" o "/mioapp/")
+        window.APP_BASE = '@Url.Content("~/")';
+    </script>
 
     <!-- SignalR CDN (unchanged) -->
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
 
-    <script src="@Url.Content("~/js/reception.js")"></script>
+    <script src="@Url.Content("~/js/reception.js")?v=@DateTime.UtcNow.Ticks"></script>
 }

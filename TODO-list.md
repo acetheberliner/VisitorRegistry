@@ -13,8 +13,8 @@
 + check-out msg
 + date picker [FATTO]
 + Badge verdi “Presente" [FATTO]
-+ da quanto tempo è dentro  [FATTO]
-+ Excel migliorato con formattazione, colori, bold, date/time
++ da quanto tempo è dentro [FATTO]
++ Excel migliorato con formattazione, colori, bold, date/time [FATTO]
 + Notifiche chek-in
 + Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?))
 + Picchi orari per reception

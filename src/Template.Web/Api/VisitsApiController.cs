@@ -72,59 +72,165 @@ namespace Template.Web.Api
         [AllowAnonymous]
         public virtual async Task<IActionResult> Export([FromQuery] string q = null, [FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] bool presentOnly = false)
         {
-            var query = _db.VisitRecords.AsNoTracking().AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(q))
+            try
             {
-                var lower = q.ToLowerInvariant();
-                query = query.Where(v =>
-                    (v.Email ?? "").ToLower().Contains(lower) ||
-                    (v.FirstName ?? "").ToLower().Contains(lower) ||
-                    (v.LastName ?? "").ToLower().Contains(lower) ||
-                    (v.QrKey ?? "").ToLower().Contains(lower));
+                var query = _db.VisitRecords.AsNoTracking().AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(q))
+                {
+                    var lower = q.ToLowerInvariant();
+                    query = query.Where(v =>
+                        (v.Email ?? "").ToLower().Contains(lower) ||
+                        (v.FirstName ?? "").ToLower().Contains(lower) ||
+                        (v.LastName ?? "").ToLower().Contains(lower) ||
+                        (v.QrKey ?? "").ToLower().Contains(lower));
+                }
+
+                if (start.HasValue)
+                    query = query.Where(v => v.CheckInTime >= start.Value);
+
+                if (end.HasValue)
+                    query = query.Where(v => v.CheckInTime <= end.Value.AddDays(1).AddTicks(-1));
+
+                if (presentOnly)
+                    query = query.Where(v => v.CheckOutTime == null);
+
+                var items = await query.OrderByDescending(x => x.CheckInTime).ToListAsync();
+
+                using var wb = new XLWorkbook();
+                var ws = wb.Worksheets.Add("Visits");
+
+                // Intestazioni colonne
+                var headers = new[] { "ID Accesso", "QR", "E-mail", "Nome", "Cognome", "Check-in", "Check-out", "Durata visita" };
+                for (int c = 0; c < headers.Length; c++)
+                    ws.Cell(1, c + 1).Value = headers[c];
+
+                // formattazione durata
+                string FormatDuration(TimeSpan d)
+                {
+                    if (d.TotalSeconds < 1) return "0s";
+                    var parts = new System.Collections.Generic.List<string>();
+                    if (d.Days > 0) parts.Add($"{d.Days}d");
+                    if (d.Hours > 0) parts.Add($"{d.Hours}h");
+                    if (d.Minutes > 0) parts.Add($"{d.Minutes}m");
+                    if (d.Seconds > 0) parts.Add($"{d.Seconds}s");
+                    return string.Join(" ", parts);
+                }
+
+                for (int i = 0; i < items.Count; i++)
+                {
+                    var r = items[i];
+                    var row = i + 2;
+                    ws.Cell(row, 1).Value = r.Id.ToString();
+                    ws.Cell(row, 2).Value = r.QrKey;
+                    ws.Cell(row, 3).Value = r.Email;
+                    ws.Cell(row, 4).Value = r.FirstName;
+                    ws.Cell(row, 5).Value = r.LastName;
+
+                    if (r.CheckInTime != default)
+                    {
+                        ws.Cell(row, 6).Value = r.CheckInTime;
+                        ws.Cell(row, 6).Style.DateFormat.Format = "dd/MM/yyyy HH:mm:ss";
+                    }
+                    else ws.Cell(row, 6).Value = "";
+
+                    if (r.CheckOutTime != null)
+                    {
+                        ws.Cell(row, 7).Value = r.CheckOutTime;
+                        ws.Cell(row, 7).Style.DateFormat.Format = "dd/MM/yyyy HH:mm:ss";
+                    }
+                    else ws.Cell(row, 7).Value = "";
+
+                    // Se checkout mancante => vuoto, altrimenti  usa checkout
+                    if (r.CheckInTime != default)
+                    {
+                        var endDt = r.CheckOutTime ?? DateTime.UtcNow;
+                        var dur = endDt - r.CheckInTime;
+                        ws.Cell(row, 8).Value = FormatDuration(dur);
+                    }
+                    else
+                    {
+                        ws.Cell(row, 8).Value = "";
+                    }
+                }
+
+                var usedRange = ws.Range(1, 1, items.Count + 1, headers.Length);
+                var table = usedRange.CreateTable();
+                table.Theme = XLTableTheme.None;
+                table.ShowAutoFilter = true;
+
+                // stile header
+                var headerRange = ws.Range(1, 1, 1, headers.Length);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Font.FontSize = 11;
+                headerRange.Style.Font.FontColor = XLColor.White;
+                headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#7E3434"); // dark muted red
+                headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                headerRange.Style.Border.OutsideBorderColor = XLColor.FromHtml("#FBCACA");
+
+                // formattazione colonne
+                ws.Column(1).Width = 40;   // ID Accesso
+                ws.Column(2).Width = 18;   // QR
+                ws.Column(3).Width = 30;   // E-mail
+                ws.Column(4).Width = 14;   // Nome
+                ws.Column(5).Width = 14;   // Cognome
+                ws.Column(6).Width = 20;   // Check-in
+                ws.Column(7).Width = 20;   // Check-out
+                ws.Column(8).Width = 14;   // Durata visita
+
+                // stile righe
+                for (int i = 0; i < items.Count; i++)
+                {
+                    var r = items[i];
+                    var row = i + 2;
+                    var fullRow = ws.Range(row, 1, row, headers.Length);
+
+                    // per ogni riga applica colore alternato
+                    if (i % 2 == 0)
+                        fullRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#FDE8E8"); // lighter pink
+                    else
+                        fullRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#FADCD9"); // slightly darker
+
+                    fullRow.Style.Border.BottomBorder = XLBorderStyleValues.Hair;
+                    fullRow.Style.Border.BottomBorderColor = XLColor.FromHtml("#F4C2C2");
+
+                    // se ancora presente => sfondo verde (uso hex valido)
+                    if (r.CheckOutTime == null)
+                    {
+                        fullRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#9AEEA5"); // light green
+                    }
+
+                    // allineamento celle
+                    ws.Cell(row, 1).Style.Font.Bold = true;
+                    ws.Cell(row, 2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    ws.Cell(row, 6).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    ws.Cell(row, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    ws.Cell(row, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                }
+
+                ws.Row(1).Height = 24;
+                ws.SheetView.FreezeRows(1);
+                ws.Columns().AdjustToContents();
+
+                ws.PageSetup.SetRowsToRepeatAtTop(1, 1);
+
+                wb.Properties.Title = "Visit Report";
+                wb.Properties.Author = "VisitorRegistry";
+
+                using var ms = new MemoryStream();
+                wb.SaveAs(ms);
+                ms.Seek(0, SeekOrigin.Begin);
+                var fileName = $"visits_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+                return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
-
-            if (start.HasValue)
-                query = query.Where(v => v.CheckInTime >= start.Value);
-
-            if (end.HasValue)
-                query = query.Where(v => v.CheckInTime <= end.Value.AddDays(1).AddTicks(-1));
-
-            if (presentOnly)
-                query = query.Where(v => v.CheckOutTime == null);
-
-            var items = await query.OrderByDescending(x => x.CheckInTime).ToListAsync();
-
-            using var wb = new XLWorkbook();
-            var ws = wb.Worksheets.Add("Visits");
-            ws.Cell(1, 1).Value = "Id";
-            ws.Cell(1, 2).Value = "QrKey";
-            ws.Cell(1, 3).Value = "Email";
-            ws.Cell(1, 4).Value = "FirstName";
-            ws.Cell(1, 5).Value = "LastName";
-            ws.Cell(1, 6).Value = "CheckInTime";
-            ws.Cell(1, 7).Value = "CheckOutTime";
-
-            for (int i = 0; i < items.Count; i++)
+            catch (Exception ex)
             {
-                var r = items[i];
-                var row = i + 2;
-                ws.Cell(row, 1).Value = r.Id.ToString();
-                ws.Cell(row, 2).Value = r.QrKey;
-                ws.Cell(row, 3).Value = r.Email;
-                ws.Cell(row, 4).Value = r.FirstName;
-                ws.Cell(row, 5).Value = r.LastName;
-                ws.Cell(row, 6).Value = r.CheckInTime;
-                ws.Cell(row, 7).Value = r.CheckOutTime;
+                _logger?.LogError(ex, "Export XLSX failed");
+                // restituisco 500 con messaggio semplice per debug (in produzione potresti nascondere l'eccezione)
+                return StatusCode(500, "Errore durante la generazione dell'export: " + ex.Message);
             }
-
-            ws.Columns().AdjustToContents();
-
-            using var ms = new MemoryStream();
-            wb.SaveAs(ms);
-            ms.Seek(0, SeekOrigin.Begin);
-            var fileName = $"visits_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
-            return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         // Checkout endpoint: marks CheckOutTime (if not present) and publishes UpdateVisitEvent
@@ -150,10 +256,7 @@ namespace Template.Web.Api
             {
                 _publisher?.Publish(new Template.Web.SignalR.Hubs.Events.UpdateVisitEvent { IdGroup = Guid.Empty, VisitDto = dto });
             }
-            catch
-            {
-                // best-effort publish
-            }
+            catch{}
 
             return Ok(dto);
         }

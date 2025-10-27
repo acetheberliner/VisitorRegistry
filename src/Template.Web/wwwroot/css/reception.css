@@ -54,3 +54,55 @@ padding-top: 1.6rem;
 padding-bottom: 1.6rem;
 width: 95%;
 }
+
+/* Palette derived from company logo — neutral gray + warm accent */
+:root{
+  --logo-gray-900: #222427;    /* dark text / brand wordmark */
+  --logo-gray-700: #4B4F52;    /* secondary */
+  --logo-accent:   #FF5A3C;    /* warm triangle / primary accent */
+  --logo-accent-60: #FF8A6F;   /* lighter accent */
+  --surface:       #FFFFFF;
+  --muted:         #6B7280;
+  --glass-shadow:  0 8px 20px rgba(15,23,42,0.06);
+  --radius-lg:     12px;
+}
+
+/* Brand-aware typographic accents */
+.page-title {
+  color: var(--logo-gray-900);
+}
+
+/* Stats emphasize using brand accent */
+.stat-value {
+  color: var(--logo-accent);
+}
+
+/* Buttons: primary uses logo accent, ghost uses accent color */
+.btn-primary {
+  background: linear-gradient(180deg, var(--logo-accent), var(--logo-accent-60));
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(255,90,60,0.12);
+}
+.btn-ghost {
+  color: var(--logo-accent);
+  background: transparent;
+  border: 1px solid rgba(255,90,60,0.06);
+}
+
+/* Table header subtle accent border and stronger text color */
+.table thead th {
+  color: var(--logo-gray-700);
+  border-bottom: 2px solid rgba(11,105,163,0.04);
+}
+
+/* Row hover uses a very light tint of the accent for affordance */
+#visits tbody tr:hover {
+  background: linear-gradient(90deg, rgba(255,90,60,0.03), rgba(255,255,255,0));
+}
+
+/* Detail: action button sheen using accent */
+.detail-actions .btn.btn-danger {
+  background: linear-gradient(180deg, #E0523A, #C93D2A);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(201,61,42,0.12);
+}
