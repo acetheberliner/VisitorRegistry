@@ -74,8 +74,22 @@ document.addEventListener('DOMContentLoaded', function () {
 		if (!s) return null;
 		if (s instanceof Date) return s;
 		var str = String(s).trim();
+
+		// If it's an ISO-like timestamp without timezone (e.g. "2025-10-28T10:15:57.2848512")
+		// we MUST treat it as UTC because server times are serialized in UTC without 'Z'.
+		// Regex matches YYYY-MM-DDTHH:MM:SS(.fraction)?
+		var isoNoZone = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(str);
+		if (isoNoZone) {
+			var dUtc = new Date(str + 'Z'); // force UTC
+			if (!isNaN(dUtc.getTime())) return dUtc;
+			// fallback to continue parsing below if this fails
+		}
+
+		// try native parse (will handle strings with explicit timezone correctly)
 		var d = new Date(str);
 		if (!isNaN(d.getTime())) return d;
+
+		// dd/mm/yyyy hh:mm(:ss) pattern
 		function build(day, mon, yr, hh, mm, ss) {
 			day = parseInt(day, 10); mon = parseInt(mon, 10) - 1; yr = parseInt(yr, 10);
 			hh = parseInt(hh || '0', 10); mm = parseInt(mm || '0', 10); ss = parseInt(ss || '0', 10);
@@ -84,9 +98,17 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 		var m = str.match(/^\s*(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*$/);
 		if (m) { var dt = build(m[1], m[2], m[3], m[4], m[5], m[6]); if (dt) return dt; }
+
+		// try relaxed variants (remove extra commas/spaces)
 		var alt = str.replace(',', '').replace(/\s+/g, ' ');
 		d = new Date(alt); if (!isNaN(d.getTime())) return d;
-		if (/^\d{4}-\d{2}-\d{2}T/.test(str) && !/Z|[+\-]\d{2}:\d{2}$/.test(str)) { d = new Date(str + 'Z'); if (!isNaN(d.getTime())) return d; }
+
+		// legacy fallback: if it's ISO-like but earlier checks failed, try forcing UTC
+		if (/^\d{4}-\d{2}-\d{2}T/.test(str) && !/Z|[+\-]\d{2}:\d{2}$/.test(str)) {
+			d = new Date(str + 'Z');
+			if (!isNaN(d.getTime())) return d;
+		}
+
 		return null;
 	}
 

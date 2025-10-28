@@ -30,11 +30,11 @@
 
 + better UX/UI:
   + colori coerenti (ONIT(?)/Brand Fittizio)
-  + soft animations
+  + soft animations (?)
   + accessibilità:
 	+ form validi
 	+ labels corrette
 	+ focus corretti
 	+ ...
-+ add db columns
++ add db columns (?)
 + clean code
