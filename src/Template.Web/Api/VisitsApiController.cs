@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 using ClosedXML.Excel;
 using System.IO;
+using Template.Services.Shared;
 
 namespace Template.Web.Api
 {
@@ -288,6 +289,161 @@ namespace Template.Web.Api
             catch { }
 
             return Ok(dto);
+        }
+
+        // Nuovo: crea una visita (controllo anti-multipli sulla stessa email o sullo stesso QrKey)
+        // Body: { "QrKey": "...", "Email": "...", "FirstName": "...", "LastName": "..." }
+        [HttpPost]
+        [AllowAnonymous]
+        public virtual async Task<IActionResult> Create([FromBody] CreateVisitRequest model)
+        {
+            if (model == null) return BadRequest("Payload mancante");
+
+            // normalizza input
+            var incomingEmail = string.IsNullOrWhiteSpace(model.Email) ? null : model.Email.Trim();
+            var incomingEmailLower = incomingEmail?.ToLowerInvariant();
+            var incomingQr = string.IsNullOrWhiteSpace(model.QrKey) ? null : model.QrKey.Trim();
+
+            // Esegui controllo e inserimento in transazione serializable per essere atomici
+            using (var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable))
+            {
+                // controllo email (case-insensitive) — fetch dei candidati e confronto in-memory robusto
+                if (!string.IsNullOrWhiteSpace(incomingEmailLower))
+                {
+                    var openCandidates = await _db.VisitRecords.AsNoTracking()
+                        .Where(v => v.CheckOutTime == null && v.Email != null)
+                        .ToListAsync();
+
+                    var existing = openCandidates.FirstOrDefault(v =>
+                        string.Equals((v.Email ?? string.Empty).Trim(), incomingEmail, StringComparison.OrdinalIgnoreCase));
+
+                    if (existing != null)
+                    {
+                        var existingDto = new
+                        {
+                            existing.Id,
+                            ShortCode = ShortFromGuid(existing.Id),
+                            existing.QrKey,
+                            existing.Email,
+                            existing.FirstName,
+                            existing.LastName,
+                            existing.CheckInTime,
+                            existing.CheckOutTime
+                        };
+                        // non commit della transazione: rollback implicito alla dispose
+                        return Conflict(new { message = "Hai già effettuato il check‑in", visit = existingDto });
+                    }
+                }
+
+                // controllo per QrKey se fornito (unchanged; rileva se stesso QR già aperto)
+                if (!string.IsNullOrWhiteSpace(incomingQr))
+                {
+                    var existingByQr = await _db.VisitRecords.AsNoTracking()
+                        .Where(v => v.CheckOutTime == null && v.QrKey != null && v.QrKey == incomingQr)
+                        .FirstOrDefaultAsync();
+
+                    if (existingByQr != null)
+                    {
+                        var existingDto = new
+                        {
+                            existingByQr.Id,
+                            ShortCode = ShortFromGuid(existingByQr.Id),
+                            existingByQr.QrKey,
+                            existingByQr.Email,
+                            existingByQr.FirstName,
+                            existingByQr.LastName,
+                            existingByQr.CheckInTime,
+                            existingByQr.CheckOutTime
+                        };
+                        return Conflict(new { message = "Hai già effettuato il check‑in (QR registrato)", visit = existingDto });
+                    }
+                }
+
+                // Nessun duplicato trovato: creazione
+                var visit = new VisitRecord
+                {
+                    Id = Guid.NewGuid(),
+                    QrKey = model.QrKey,
+                    Email = model.Email,
+                    FirstName = model.FirstName,
+                    LastName = model.LastName,
+                    CheckInTime = DateTime.UtcNow,
+                    CheckOutTime = null
+                };
+
+                _db.VisitRecords.Add(visit);
+                await _db.SaveChangesAsync();
+
+                // SQLite non supporta colonne calcolate PERSISTED:
+                // popola EmailNorm manualmente per questa riga (LOWER(Email)) in modo da poter creare indice univoco filtrato in DB
+                try
+                {
+                    var emailNorm = (visit.Email ?? string.Empty).Trim().ToLowerInvariant();
+                    await _db.Database.ExecuteSqlRawAsync("UPDATE VisitRecords SET EmailNorm = {0} WHERE Id = {1}", emailNorm, visit.Id);
+                }
+                catch
+                {
+                    // best-effort: se la colonna EmailNorm non esiste o update fallisce, non interrompiamo la creazione
+                }
+
+                await tx.CommitAsync();
+
+                var dto = new
+                {
+                    visit.Id,
+                    ShortCode = ShortFromGuid(visit.Id),
+                    visit.QrKey,
+                    visit.Email,
+                    visit.FirstName,
+                    visit.LastName,
+                    visit.CheckInTime,
+                    visit.CheckOutTime
+                };
+
+                try { _publisher?.Publish(new Template.Web.SignalR.Hubs.Events.UpdateVisitEvent { IdGroup = Guid.Empty, VisitDto = dto }); } catch { }
+
+                return CreatedAtAction(nameof(Get), new { id = visit.Id }, dto);
+            }
+        }
+
+        // Nuovo (aggiornato): cerca visita aperta per email (utile per scanner QR/cliente)
+        [HttpGet("by-email")]
+        [AllowAnonymous]
+        public virtual async Task<IActionResult> GetOpenByEmail([FromQuery] string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return BadRequest("Parametro 'email' mancante");
+            var emailTrim = email.Trim();
+
+            // prendi tutti i record aperti con email non nulla e confronta in-memory per robustezza
+            var openCandidates = await _db.VisitRecords.AsNoTracking()
+                .Where(x => x.CheckOutTime == null && x.Email != null)
+                .OrderByDescending(x => x.CheckInTime)
+                .ToListAsync();
+
+            var v = openCandidates.FirstOrDefault(x => string.Equals((x.Email ?? string.Empty).Trim(), emailTrim, StringComparison.OrdinalIgnoreCase));
+            if (v == null) return NotFound();
+
+            var dto = new
+            {
+                v.Id,
+                ShortCode = ShortFromGuid(v.Id),
+                v.QrKey,
+                v.Email,
+                v.FirstName,
+                v.LastName,
+                v.CheckInTime,
+                v.CheckOutTime
+            };
+            return Ok(dto);
+        }
+
+        // Model semplice per la creazione (evita dipendenze esterne)
+        public class CreateVisitRequest
+        {
+            public string QrKey { get; set; }
+            public string Email { get; set; }
+            public string FirstName { get; set; }
+            public string LastName { get; set; }
         }
     }
 }

@@ -1,57 +1,113 @@
-// client-side form validation to enforce Nome/Cognome before submit
+// Client-side for visitor check-in: post to API and handle 409 (already checked-in)
+
 (function () {
-    const form = document.getElementById('visitorForm');
-    if (!form) return;
-
-    const first = form.querySelector('[name="FirstName"], [asp-for="FirstName"]') || form.querySelector('input[asp-for="FirstName"]');
-    const last = form.querySelector('[name="LastName"], [asp-for="LastName"]') || form.querySelector('input[asp-for="LastName"]');
-
-    function setInvalid(el, msgElId, show) {
-        if (!el) return;
-        const msg = document.getElementById(msgElId);
-        if (show) {
-            el.classList.add('is-invalid');
-            if (msg) msg.style.display = 'block';
-        } else {
-            el.classList.remove('is-invalid');
-            if (msg) msg.style.display = 'none';
-        }
+    // helper basePath (usa APP_BASE se definito)
+    function basePath() {
+        try { return (typeof APP_BASE !== 'undefined' && APP_BASE) ? APP_BASE.replace(/\/?$/, '/') : '/'; }
+        catch (e) { return '/'; }
     }
 
-    form.addEventListener('submit', function (e) {
-        let invalid = false;
-        const firstVal = first && first.value ? first.value.trim() : '';
-        const lastVal = last && last.value ? last.value.trim() : '';
+    // helper per leggere valore input by name
+    function val(form, name) {
+        var el = form.querySelector('[name="' + name + '"]');
+        return el ? el.value.trim() : '';
+    }
 
-        if (!firstVal) {
-            setInvalid(first, 'err-firstName', true);
-            invalid = true;
-        } else {
-            setInvalid(first, 'err-firstName', false);
+    // mostra messaggio inline sopra il form
+    function showInlineMessage(container, html, level) {
+        level = level || 'info';
+        var el = container.querySelector('.visitor-message');
+        if (!el) {
+            el = document.createElement('div');
+            el.className = 'visitor-message mb-3';
+            container.insertBefore(el, container.firstChild);
         }
+        el.innerHTML = html;
+        el.style.color = (level === 'error') ? '#b91c1c' : '#0b69a3';
+    }
 
-        if (!lastVal) {
-            setInvalid(last, 'err-lastName', true);
-            invalid = true;
-        } else {
-            setInvalid(last, 'err-lastName', false);
-        }
+    document.addEventListener('DOMContentLoaded', function () {
+        var form = document.getElementById('visitorForm');
+        if (!form) return;
 
-        if (invalid) {
-            e.preventDefault();
-            // focus first invalid field
-            ((first && !firstVal) ? first : (last && !lastVal) ? last : first).focus?.();
-        }
-    });
+        var cardBody = form.closest('.card-body') || form.parentElement;
 
-    // clear error on input
-    [first, last].forEach(el => {
-        if (!el) return;
-        el.addEventListener('input', () => {
-            if (el.value.trim()) {
-                if (el === first) setInvalid(first, 'err-firstName', false);
-                if (el === last) setInvalid(last, 'err-lastName', false);
+        form.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+
+            // semplice validazione client
+            var first = val(form, 'FirstName');
+            var last = val(form, 'LastName');
+            var email = val(form, 'Email');
+            var qr = val(form, 'QrKey');
+
+            if (!first || !last) {
+                showInlineMessage(cardBody, 'Compila nome e cognome.', 'error');
+                return;
             }
+
+            var payload = { QrKey: qr || null, Email: email || null, FirstName: first, LastName: last };
+
+            // disabilita pulsante submit durante richiesta
+            var submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.orig = submitBtn.innerText; submitBtn.innerText = '⏳'; }
+
+            fetch(basePath() + 'api/visits', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(async function (res) {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = submitBtn.dataset.orig || 'Conferma ingresso'; }
+
+                    if (res.status === 201 || res.status === 200) {
+                        // creazione OK: server ritorna DTO con Id
+                        var dto = await res.json();
+                        // redirect a pagina summary server-side (se il controller la supporta)
+                        var id = dto && (dto.Id || dto.id);
+                        if (id) {
+                            window.location.href = basePath() + 'Visitor/Summary?id=' + encodeURIComponent(id);
+                            return;
+                        } else {
+                            // fallback: mostra messaggio di conferma con codice corto
+                            var sc = dto && (dto.ShortCode || dto.shortCode);
+                            showInlineMessage(cardBody, 'Check-in registrato. Codice: <strong>' + (sc || '-') + '</strong>');
+                            return;
+                        }
+                    } else if (res.status === 409) {
+                        // già registrato: server fornisce { message, visit }
+                        var payload409 = await res.json().catch(function () { return null; });
+                        var visit = null;
+                        if (payload409) {
+                            // payload potrebbe essere { message: "...", visit: {...} } o direttamente { visit: ... }
+                            visit = payload409.visit || payload409;
+                        }
+                        var existingId = visit && (visit.Id || visit.id);
+                        var shortCode = visit && (visit.ShortCode || visit.shortCode);
+
+                        // preferiamo redirect alla pagina summary della visita esistente (se disponibile)
+                        if (existingId) {
+                            window.location.href = basePath() + 'Visitor/Summary?id=' + encodeURIComponent(existingId);
+                            return;
+                        }
+
+                        // altrimenti mostriamo messaggio inline con shortCode (se presente)
+                        var msg = (payload409 && payload409.message) ? payload409.message : 'Sei già registrato.';
+                        if (shortCode) msg += '<br/>Codice visita: <strong>' + shortCode + '</strong>';
+                        showInlineMessage(cardBody, msg, 'info');
+                        return;
+                    } else {
+                        // altri errori -> mostra testo
+                        var txt = await res.text().catch(function () { return ''; });
+                        showInlineMessage(cardBody, 'Errore server: ' + (res.status || '') + ' ' + txt, 'error');
+                    }
+                })
+                .catch(function (err) {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = submitBtn.dataset.orig || 'Conferma ingresso'; }
+                    console.error(err);
+                    showInlineMessage(cardBody, 'Errore di rete durante invio dati. Riprovare.', 'error');
+                });
         });
     });
 })();
