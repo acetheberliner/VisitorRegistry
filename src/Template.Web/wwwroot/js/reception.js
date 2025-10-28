@@ -154,6 +154,14 @@ document.addEventListener('DOMContentLoaded', function () {
 		if (detailIn) detailIn.innerText = formatDate(getField(v, 'CheckInTime', 'checkInTime'));
 		if (detailOut) detailOut.innerText = formatDate(getField(v, 'CheckOutTime', 'checkOutTime'));
 
+		// Aggiorna l'ID check-in nel pannello dettaglio usando ShortCode (preferito) o fallback da GUID
+		try {
+			var idCheckEl = document.getElementById('idcheck');
+			var shortFromDto = getField(v, 'ShortCode', 'shortCode');
+			var shortVal = shortFromDto || generateShortFromGuid(id);
+			if (idCheckEl) idCheckEl.innerText = shortVal;
+		} catch (e) { /* ignore */ }
+
 		if (detailCheckoutBtn) {
 			if (getField(v, 'CheckOutTime', 'checkOutTime')) detailCheckoutBtn.disabled = true, detailCheckoutBtn.innerText = 'Uscita registrata';
 			else { detailCheckoutBtn.disabled = false; detailCheckoutBtn.innerText = 'Segna uscita'; detailCheckoutBtn.onclick = function () { checkoutVisit(id, detailCheckoutBtn); }; }
@@ -297,8 +305,8 @@ document.addEventListener('DOMContentLoaded', function () {
 		// short code: preferisci ShortCode, altrimenti fallback dal GUID
 		var short = getField(v, 'ShortCode', 'shortCode') || generateShortFromGuid(id);
 
-		// mostro il codice breve come piccolo badge sopra il QR (non sostituisco QrKey)
-		var qrHtml = '<div style="font-size:0.9rem;color:#6b7280">#' + qr + '</div><div>' + escapeHtml(short) + '</div>';
+		// mostro il codice breve come piccolo badge sotto il QR; mantiene il QR nella stessa cella
+		var qrHtml = '<div style="font-size:0.9rem;color:#6b7280">' + escapeHtml(qr) + '</div><div class="fw-bold">' + escapeHtml(short) + '</div>';
 
 		var actionsHtml = '';
 		if (cout) actionsHtml += '<button class="btn btn-sm btn-outline-secondary" disabled>Uscito</button>'; else actionsHtml += '<button class="btn btn-sm btn-success" onclick="openDetailFromRow(\'' + id + '\')">Presente</button>';
@@ -311,6 +319,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			+ '<td>' + cin + '</td>'
 			+ '<td>' + cout + '</td>'
 			+ '<td>' + actionsHtml + '</td>';
+
+		// espone i valori utili come data attributes (usati da updateIdCheck)
+		try { row.dataset.shortcode = short; row.dataset.qr = qr; } catch (e) { /* ignore */ }
 
 		row.onclick = function () { openDetail(id, v); };
 
@@ -336,15 +347,62 @@ document.addEventListener('DOMContentLoaded', function () {
 		presentNowEl.innerText = present; visitCountEl.innerText = 'Visitatori attualmente presenti: ' + present;
 		var first = tableBody.getElementsByTagName('tr')[0]; lastCheckinEl.innerText = first ? (first.getElementsByTagName('td')[4].innerText || '-') : '-';
 	}
-
-	// open detail ricostruito dalla riga
-	function openDetailFromRow(id) {
-		var row = document.getElementById('v-' + id); if (!row) return;
-		var cells = row.getElementsByTagName('td');
-		var v = { Id: id, QrKey: cells[0] ? cells[0].innerText : '', Email: cells[1] ? cells[1].innerText : '', FirstName: cells[2] ? cells[2].innerText : '', LastName: cells[3] ? cells[3].innerText : '', CheckInTime: cells[4] ? cells[4].innerText : '', CheckOutTime: cells[5] ? cells[5].innerText : '' };
-		openDetail(id, v);
-	}
-
+	
 	// start
 	loadVisits();
+
+	// --- NEW: updateIdCheck moved here (was previously inline in Index.cshtml) ---
+	function updateIdCheck() {
+		try {
+			var idEl = document.getElementById('idcheck');
+			if (!idEl) return;
+
+			// se il pannello dettaglio è nascosto esci
+			var detailPaneLocal = document.getElementById('detailPane');
+			if (!detailPaneLocal || detailPaneLocal.classList.contains('d-none')) {
+				idEl.innerText = '-';
+				return;
+			}
+
+			// prova a trovare la riga selezionata
+			var sel = document.querySelector('#visits tbody tr.selected');
+			var idText = '-';
+
+			if (sel) {
+				// usa data-shortcode (preso da renderRow) invece di innerText per evitare che venga mostrato anche il QR
+				if (sel.dataset && sel.dataset.shortcode) idText = sel.dataset.shortcode;
+				else {
+					// fallback: genera dal GUID se non presente
+					var rid = sel.id ? sel.id.replace(/^v-/, '') : '';
+					idText = rid ? generateShortFromGuid(rid) : '-';
+				}
+			} else {
+				// fallback: cerca nella UI di dettaglio se è presente un elemento con shortcode o id
+				var detailId = document.querySelector('[data-visit-id]');
+				if (detailId && detailId.dataset && detailId.dataset.visitId) {
+					idText = detailId.dataset.visitId;
+				}
+			}
+
+			idEl.innerText = idText;
+		} catch (e) {
+			console.error('updateIdCheck error', e);
+		}
+	}
+
+	// reagisci ai click (la selezione delle righe probabilmente avviene su click)
+	document.addEventListener('click', function () { setTimeout(updateIdCheck, 50); }, true);
+
+	// osserva cambi nel tbody (es. righe ricaricate/ricostruite da JS)
+	if (tableBody && window.MutationObserver) {
+		var mo_local = new MutationObserver(function () { updateIdCheck(); });
+		mo_local.observe(tableBody, { childList: true, subtree: true, attributes: true });
+	}
+
+	// fallback periodico (non invasivo) per assicurare aggiornamento quando necessario
+	setInterval(updateIdCheck, 1500);
+
+	// esegui subito una prima volta dopo il caricamento iniziale
+	document.addEventListener('DOMContentLoaded', updateIdCheck);
+	updateIdCheck();
 });

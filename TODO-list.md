@@ -15,14 +15,14 @@
 + Badge verdi “Presente" [FATTO]
 + da quanto tempo è dentro [FATTO]
 + Excel migliorato con formattazione, colori, bold, date/time [FATTO]
-+ Notifiche chek-in
 + Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?)) [FATTO]
-+ Fix Duration 1 hour late 
++ Fix Duration 1 hour late
 
 ## EXTRA
 
 + scarica badge visitatore in galleria [FATTO]
-+ ID nella sidebar
++ Notifiche chek-in
++ ID nella sidebar [FATTO]
 + Dashboard responsive touch-friendly
 + Picchi orari per reception (?)
 
