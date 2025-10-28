@@ -9,18 +9,20 @@
 
 ## DA FARE
 
-+ CRUD entry
++ CRUD entry [?]
 + check-out msg
 + date picker [FATTO]
 + Badge verdi “Presente" [FATTO]
 + da quanto tempo è dentro [FATTO]
 + Excel migliorato con formattazione, colori, bold, date/time [FATTO]
 + Notifiche chek-in
-+ Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?))
++ Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?)) [FATTO]
++ Fix Duration 1 hour late 
 
 ## EXTRA
 
 + scarica badge visitatore in galleria [FATTO]
++ ID nella sidebar
 + Dashboard responsive touch-friendly
 + Picchi orari per reception (?)
 

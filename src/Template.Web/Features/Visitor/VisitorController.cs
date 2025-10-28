@@ -41,8 +41,24 @@ namespace Template.Web.Features.Visitor
                 AdditionalInfo = model.AdditionalInfo
             });
 
-            // publish signalr events depending on whether it's checkin or checkout
-            var visitDto = new { Id = result.Id, QrKey = model.QrKey, result.Email, result.FirstName, result.LastName, result.CheckInTime, result.CheckOutTime };
+            // Se SharedService segnala che la visita esistente è stata trovata (email già presente),
+            // non creiamo una nuova entry né pubblichiamo un nuovo evento: mostriamo la summary esistente.
+            if (result != null && result.IsExisting)
+            {
+                return RedirectToAction("Summary", new { id = result.Id, existing = true });
+            }
+
+            // build visit DTO using il risultato restituito (non il model) — assicura QrKey corretto
+            var visitDto = new
+            {
+                Id = result.Id,
+                QrKey = result.QrKey ?? model.QrKey,
+                result.Email,
+                result.FirstName,
+                result.LastName,
+                result.CheckInTime,
+                result.CheckOutTime
+            };
 
             if (result.CheckOutTime.HasValue)
             {

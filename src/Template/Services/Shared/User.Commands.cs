@@ -58,8 +58,6 @@ namespace Template.Services.Shared
             return user.Id;
         }
 
-        // ...existing code...
-
         /// <summary>
         /// If there's an active visit (same QrKey with null CheckOutTime) then set checkout time.
         /// Otherwise create a new VisitRecord (check-in).
@@ -67,7 +65,35 @@ namespace Template.Services.Shared
         /// </summary>
         public async Task<VisitByQrDTO> Handle(AddOrUpdateVisitCommand cmd)
         {
-            // Find the most recent visit for that QrKey which is still open
+            // Normalizza email per confronto (trim + lower)
+            var emailTrim = string.IsNullOrWhiteSpace(cmd.Email) ? null : cmd.Email.Trim();
+            var emailLower = emailTrim?.ToLowerInvariant();
+
+            // 1) Se l'email è fornita: verifica se esiste già una visita aperta con la stessa email (indipendente dal QR)
+            if (!string.IsNullOrWhiteSpace(emailLower))
+            {
+                var existingByEmail = await _dbContext.VisitRecords
+                    .Where(x => x.CheckOutTime == null && x.Email != null && x.Email.ToLower() == emailLower)
+                    .OrderByDescending(x => x.CheckInTime)
+                    .FirstOrDefaultAsync();
+
+                if (existingByEmail != null)
+                {
+                    return new VisitByQrDTO
+                    {
+                        Id = existingByEmail.Id,
+                        QrKey = existingByEmail.QrKey,
+                        Email = existingByEmail.Email,
+                        FirstName = existingByEmail.FirstName,
+                        LastName = existingByEmail.LastName,
+                        CheckInTime = existingByEmail.CheckInTime,
+                        CheckOutTime = existingByEmail.CheckOutTime,
+                        IsExisting = true
+                    };
+                }
+            }
+
+            // 2) Se non c'è visita aperta per email, comportamento precedente: cerca per QrKey (checkout se stesso QR)
             var existing = await _dbContext.VisitRecords
                 .Where(x => x.QrKey == cmd.QrKey && x.CheckOutTime == null)
                 .OrderByDescending(x => x.CheckInTime)
@@ -81,6 +107,7 @@ namespace Template.Services.Shared
                 return new VisitByQrDTO
                 {
                     Id = existing.Id,
+                    QrKey = existing.QrKey,
                     Email = existing.Email,
                     FirstName = existing.FirstName,
                     LastName = existing.LastName,
@@ -89,7 +116,8 @@ namespace Template.Services.Shared
                 };
             }
 
-            var visit = new Template.Services.Shared.VisitRecord
+            // 3) Nessuna visita aperta: crea nuova visita (check-in)
+            var visit = new VisitRecord
             {
                 QrKey = cmd.QrKey,
                 Email = cmd.Email,
@@ -106,6 +134,7 @@ namespace Template.Services.Shared
             return new VisitByQrDTO
             {
                 Id = visit.Id,
+                QrKey = visit.QrKey,
                 Email = visit.Email,
                 FirstName = visit.FirstName,
                 LastName = visit.LastName,

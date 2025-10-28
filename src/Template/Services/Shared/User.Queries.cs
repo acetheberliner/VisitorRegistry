@@ -185,11 +185,13 @@ namespace Template.Services.Shared
             return new VisitByQrDTO
             {
                 Id = v.Id,
+                QrKey = v.QrKey, // <--- aggiunto: utile per pubblicare eventi corretti
                 Email = v.Email,
                 FirstName = v.FirstName,
                 LastName = v.LastName,
                 CheckInTime = v.CheckInTime,
-                CheckOutTime = v.CheckOutTime
+                CheckOutTime = v.CheckOutTime,
+                IsExisting = true // <--- aggiunto: indica che la visita restituita è una existing open visit (non creata ora)
             };
         }
     }
@@ -202,10 +204,14 @@ namespace Template.Services.Shared
     public class VisitByQrDTO
     {
         public Guid Id { get; set; }
+        public string QrKey { get; set; }        // <--- aggiunto: utile per pubblicare eventi corretti
         public string Email { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public DateTime CheckInTime { get; set; }
         public DateTime? CheckOutTime { get; set; }
+
+        // <--- aggiunto: indica che la visita restituita è una existing open visit (non creata ora)
+        public bool IsExisting { get; set; } = false;
     }
 }

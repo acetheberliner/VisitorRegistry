@@ -28,6 +28,29 @@ namespace Template.Web.Api
             _logger = logger;
             _sharedService = sharedService;
             _publisher = publisher;
+
+            // Tentativo best-effort di aggiungere la colonna EmailNorm e l'indice unico filtrato su SQLite.
+            // Non fa fallire l'avvio se il DB non lo supporta o se già presente.
+            try
+            {
+                // aggiungi colonna (se non esiste questo comando può fallire -> catturiamo)
+                _db.Database.ExecuteSqlRaw("ALTER TABLE VisitRecords ADD COLUMN EmailNorm TEXT");
+            }
+            catch { /* ignore - colonna potrebbe già esistere o DB non supporti ALTER */ }
+
+            try
+            {
+                // popola EmailNorm
+                _db.Database.ExecuteSqlRaw("UPDATE VisitRecords SET EmailNorm = LOWER(Email) WHERE Email IS NOT NULL");
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                // crea indice univoco parziale per record aperti (SQLite supporta partial index)
+                _db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_VisitRecords_EmailNorm_Open ON VisitRecords (EmailNorm) WHERE CheckOutTime IS NULL AND EmailNorm IS NOT NULL");
+            }
+            catch { /* ignore */ }
         }
 
         // Helper: genera ShortCode di 5 caratteri da un Guid (caratteri A-Z0-9)
@@ -273,7 +296,7 @@ namespace Template.Web.Api
 
             if (v.CheckOutTime != null)
             {
-                // return current state including ShortCode
+                // return current state
                 return Ok(new { v.Id, ShortCode = ShortFromGuid(v.Id), v.QrKey, v.Email, v.FirstName, v.LastName, v.CheckInTime, v.CheckOutTime });
             }
 
@@ -291,8 +314,6 @@ namespace Template.Web.Api
             return Ok(dto);
         }
 
-        // Nuovo: crea una visita (controllo anti-multipli sulla stessa email o sullo stesso QrKey)
-        // Body: { "QrKey": "...", "Email": "...", "FirstName": "...", "LastName": "..." }
         [HttpPost]
         [AllowAnonymous]
         public virtual async Task<IActionResult> Create([FromBody] CreateVisitRequest model)
@@ -304,18 +325,15 @@ namespace Template.Web.Api
             var incomingEmailLower = incomingEmail?.ToLowerInvariant();
             var incomingQr = string.IsNullOrWhiteSpace(model.QrKey) ? null : model.QrKey.Trim();
 
-            // Esegui controllo e inserimento in transazione serializable per essere atomici
             using (var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable))
             {
-                // controllo email (case-insensitive) — fetch dei candidati e confronto in-memory robusto
+                // controllo email (case-insensitive) prima di creare
                 if (!string.IsNullOrWhiteSpace(incomingEmailLower))
                 {
-                    var openCandidates = await _db.VisitRecords.AsNoTracking()
-                        .Where(v => v.CheckOutTime == null && v.Email != null)
-                        .ToListAsync();
-
-                    var existing = openCandidates.FirstOrDefault(v =>
-                        string.Equals((v.Email ?? string.Empty).Trim(), incomingEmail, StringComparison.OrdinalIgnoreCase));
+                    var existing = await _db.VisitRecords.AsNoTracking()
+                        .Where(v => v.CheckOutTime == null && v.Email != null && v.Email.ToLower() == incomingEmailLower)
+                        .OrderByDescending(v => v.CheckInTime)
+                        .FirstOrDefaultAsync();
 
                     if (existing != null)
                     {
@@ -330,12 +348,11 @@ namespace Template.Web.Api
                             existing.CheckInTime,
                             existing.CheckOutTime
                         };
-                        // non commit della transazione: rollback implicito alla dispose
                         return Conflict(new { message = "Hai già effettuato il check‑in", visit = existingDto });
                     }
                 }
 
-                // controllo per QrKey se fornito (unchanged; rileva se stesso QR già aperto)
+                // controllo per QrKey se fornito
                 if (!string.IsNullOrWhiteSpace(incomingQr))
                 {
                     var existingByQr = await _db.VisitRecords.AsNoTracking()
@@ -359,7 +376,7 @@ namespace Template.Web.Api
                     }
                 }
 
-                // Nessun duplicato trovato: creazione
+                // nessun duplicato trovato: creazione temporanea
                 var visit = new VisitRecord
                 {
                     Id = Guid.NewGuid(),
@@ -372,20 +389,40 @@ namespace Template.Web.Api
                 };
 
                 _db.VisitRecords.Add(visit);
+
+                // salva dentro la transazione ma non ancora commit
                 await _db.SaveChangesAsync();
 
-                // SQLite non supporta colonne calcolate PERSISTED:
-                // popola EmailNorm manualmente per questa riga (LOWER(Email)) in modo da poter creare indice univoco filtrato in DB
-                try
+                // controllo difensivo: è stato inserito nel frattempo un altro record aperto con la stessa email?
+                if (!string.IsNullOrWhiteSpace(incomingEmail))
                 {
-                    var emailNorm = (visit.Email ?? string.Empty).Trim().ToLowerInvariant();
-                    await _db.Database.ExecuteSqlRawAsync("UPDATE VisitRecords SET EmailNorm = {0} WHERE Id = {1}", emailNorm, visit.Id);
-                }
-                catch
-                {
-                    // best-effort: se la colonna EmailNorm non esiste o update fallisce, non interrompiamo la creazione
+                    var other = await _db.VisitRecords.AsNoTracking()
+                        .Where(v => v.Id != visit.Id && v.CheckOutTime == null && v.Email != null)
+                        .ToListAsync();
+
+                    var conflict = other.FirstOrDefault(v => string.Equals((v.Email ?? string.Empty).Trim(), incomingEmail, StringComparison.OrdinalIgnoreCase));
+
+                    if (conflict != null)
+                    {
+                        // rollback: annulla l'inserimento corrente e ritorna 409 con la visita esistente
+                        await tx.RollbackAsync();
+
+                        var existingDto = new
+                        {
+                            conflict.Id,
+                            ShortCode = ShortFromGuid(conflict.Id),
+                            conflict.QrKey,
+                            conflict.Email,
+                            conflict.FirstName,
+                            conflict.LastName,
+                            conflict.CheckInTime,
+                            conflict.CheckOutTime
+                        };
+                        return Conflict(new { message = "Hai già effettuato il check‑in", visit = existingDto });
+                    }
                 }
 
+                // nessun conflitto rilevato, commit
                 await tx.CommitAsync();
 
                 var dto = new
@@ -406,7 +443,7 @@ namespace Template.Web.Api
             }
         }
 
-        // Nuovo (aggiornato): cerca visita aperta per email (utile per scanner QR/cliente)
+        // cerca visita aperta per email
         [HttpGet("by-email")]
         [AllowAnonymous]
         public virtual async Task<IActionResult> GetOpenByEmail([FromQuery] string email)
