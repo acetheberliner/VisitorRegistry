@@ -115,10 +115,10 @@
                         <div class="mb-1"><small class="text-muted">Durata</small><div id="detailDuration">-</div></div>
                         <div class="mb-1"><small class="text-muted">Entrata</small><div id="detailIn">-</div></div>
                         <div class="mb-1"><small class="text-muted">Uscita</small><div id="detailOut">-</div></div>
-                        <div class="mt-3 d-flex gap-2">
-                            <button id="detailCheckoutBtn" class="btn btn-danger btn-sm">Segna uscita</button>
-                            <button id="detailEditBtn" class="btn btn-outline-primary btn-sm">Modifica</button>
-                            <button id="detailDeleteBtn" class="btn btn-outline-danger btn-sm">Elimina</button>
+                        <div class="mt-3 d-flex gap-2 justify-content-center">
+                            <button id="detailCheckoutBtn" class="btn btn-danger btn-sm">Check-out</button>
+                            @* <button id="detailEditBtn" class="btn btn-outline-primary btn-sm">Modifica</button>
+                            <button id="detailDeleteBtn" class="btn btn-outline-danger btn-sm">Elimina</button> *@
                         </div>
                     </div>
                 </div>
@@ -139,14 +139,13 @@
 </div>
 
 @section scripts {
-    <!-- global base path per JS (evita 404 se l'app è montata su subpath) -->
     <script>
-        // APP_BASE termina con '/' (es. "/" o "/mioapp/")
         window.APP_BASE = '@Url.Content("~/")';
     </script>
 
-    <!-- SignalR CDN (unchanged) -->
+    <!-- SignalR CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
 
-    <script src="@Url.Content("~/js/reception.js")?v=@DateTime.UtcNow.Ticks"></script>
+    <!-- file js per la logica reception -->
+    <script type="module" src="@Url.Content("~/js/reception/main.js")"></script>
 }

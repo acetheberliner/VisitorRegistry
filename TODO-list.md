@@ -16,18 +16,18 @@
 + da quanto tempo è dentro [FATTO]
 + Excel migliorato con formattazione, colori, bold, date/time [FATTO]
 + Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?)) [FATTO]
-+ Fix Duration 1 hour late
++ Fix Duration 1 hour late [FATTO]
 
 ## EXTRA
 
 + scarica badge visitatore in galleria [FATTO]
-+ Notifiche chek-in
 + ID nella sidebar [FATTO]
-+ Dashboard responsive touch-friendly
++ Notifiche chek-in reception (?)
 + Picchi orari per reception (?)
 
 ## INFRASTRUTTURA
 
++ Dashboard responsive touch-friendly
 + better UX/UI:
   + colori coerenti (ONIT(?)/Brand Fittizio)
   + soft animations (?)
@@ -38,3 +38,4 @@
 	+ ...
 + add db columns (?)
 + clean code
++ modularità reception.js [FATTO]
