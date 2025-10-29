@@ -29,28 +29,87 @@ namespace Template.Web.Api
             _sharedService = sharedService;
             _publisher = publisher;
 
-            // Tentativo best-effort di aggiungere la colonna EmailNorm e l'indice unico filtrato su SQLite.
-            // Non fa fallire l'avvio se il DB non lo supporta o se già presente.
+            // Best-effort: aggiunge EmailNorm e indice SOLO se assenti, evitando errori in avvio
             try
             {
-                // aggiungi colonna (se non esiste questo comando può fallire -> catturiamo)
-                _db.Database.ExecuteSqlRaw("ALTER TABLE VisitRecords ADD COLUMN EmailNorm TEXT");
-            }
-            catch { /* ignore - colonna potrebbe già esistere o DB non supporti ALTER */ }
+                var conn = _db.Database.GetDbConnection();
+                // apertura sincrona accettabile in costruttore (piccolo check)
+                if (conn.State != System.Data.ConnectionState.Open) conn.Open();
 
-            try
-            {
-                // popola EmailNorm
-                _db.Database.ExecuteSqlRaw("UPDATE VisitRecords SET EmailNorm = LOWER(Email) WHERE Email IS NOT NULL");
-            }
-            catch { /* ignore */ }
+                // Controlla presenza colonna EmailNorm
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "PRAGMA table_info('VisitRecords')";
+                    using var reader = cmd.ExecuteReader();
+                    bool hasEmailNorm = false;
+                    while (reader.Read())
+                    {
+                        var colName = reader["name"]?.ToString();
+                        if (string.Equals(colName, "EmailNorm", StringComparison.OrdinalIgnoreCase))
+                        {
+                            hasEmailNorm = true;
+                            break;
+                        }
+                    }
 
-            try
-            {
-                // crea indice univoco parziale per record aperti (SQLite supporta partial index)
-                _db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_VisitRecords_EmailNorm_Open ON VisitRecords (EmailNorm) WHERE CheckOutTime IS NULL AND EmailNorm IS NOT NULL");
+                    if (!hasEmailNorm)
+                    {
+                        try
+                        {
+                            _db.Database.ExecuteSqlRaw("ALTER TABLE VisitRecords ADD COLUMN EmailNorm TEXT");
+                            _logger?.LogInformation("Aggiunta colonna EmailNorm");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogWarning(ex, "Aggiunta colonna EmailNorm fallita (continua senza vincolo DB)");
+                        }
+                    }
+
+                    // Popola EmailNorm (best-effort)
+                    try
+                    {
+                        _db.Database.ExecuteSqlRaw("UPDATE VisitRecords SET EmailNorm = LOWER(Email) WHERE Email IS NOT NULL");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogDebug(ex, "Popolamento EmailNorm non eseguito (ignoro)");
+                    }
+
+                    // Controlla presenza indice IX_VisitRecords_EmailNorm_Open
+                    cmd.CommandText = "PRAGMA index_list('VisitRecords')";
+                    using var idxReader = cmd.ExecuteReader();
+                    bool hasIndex = false;
+                    while (idxReader.Read())
+                    {
+                        var idxName = idxReader["name"]?.ToString();
+                        if (string.Equals(idxName, "IX_VisitRecords_EmailNorm_Open", StringComparison.OrdinalIgnoreCase))
+                        {
+                            hasIndex = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasIndex)
+                    {
+                        try
+                        {
+                            _db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_VisitRecords_EmailNorm_Open ON VisitRecords (EmailNorm) WHERE CheckOutTime IS NULL AND EmailNorm IS NOT NULL");
+                            _logger?.LogInformation("Creato indice IX_VisitRecords_EmailNorm_Open");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogWarning(ex, "Creazione indice EmailNorm fallita (continua senza vincolo DB)");
+                        }
+                    }
+                }
+
+                if (conn.State == System.Data.ConnectionState.Open) conn.Close();
             }
-            catch { /* ignore */ }
+            catch (Exception ex)
+            {
+                // Non bloccare l'avvio: logga come warning/debug per evitare spam di "fail" non gestibili
+                _logger?.LogWarning(ex, "Controllo iniziale DB per EmailNorm/indice fallito (continua comunque)");
+            }
         }
 
         // Helper: genera ShortCode di 5 caratteri da un Guid (caratteri A-Z0-9)
