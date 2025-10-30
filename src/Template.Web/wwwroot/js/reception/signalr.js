@@ -1,14 +1,14 @@
 import { renderRow } from './render.js';
 
 // avvia SignalR e gestisce eventi
-export function startSignalR() {
+export function startSignalR(onNewVisit, onUpdateVisit) {
   if (typeof signalR === 'undefined') {
-    console.warn('SignalR non disponibile');
+    console.warn('SignalR not available');
     return null;
   }
   const connection = new signalR.HubConnectionBuilder().withUrl('/templateHub').build();
-  connection.on('NewVisit', v => renderRow(v));
-  connection.on('UpdateVisit', v => renderRow(v));
-  connection.start().catch(e => console.warn('SignalR avvio fallito', e));
+  if (onNewVisit) connection.on('NewVisit', v => onNewVisit(v));
+  if (onUpdateVisit) connection.on('UpdateVisit', v => onUpdateVisit(v));
+  connection.start().catch(e => console.warn('SignalR start failed', e));
   return connection;
 }

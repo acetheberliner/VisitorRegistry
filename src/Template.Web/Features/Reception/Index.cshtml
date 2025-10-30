@@ -72,6 +72,11 @@
                             <button id="exportBtn" class="btn btn-success btn-sm">Esporta</button>
                         </div>
                     </div>
+
+                    <!-- Error banner: mostrato se il client non riesce a caricare le visite -->
+                    <div id="receptionError" class="alert alert-warning mt-3 mb-0 d-none" role="alert" style="font-size:0.95rem;">
+                        Impossibile caricare le visite — controlla la console o il server.
+                    </div>
                 </div>
             </div>
 
@@ -117,9 +122,8 @@
                         <div class="mb-1"><small class="text-muted">Uscita</small><div id="detailOut">-</div></div>
                         <div class="mt-3 d-flex gap-2 justify-content-center">
                             <button id="detailCheckoutBtn" class="btn btn-danger btn-sm">Check-out</button>
-                            @* DA CAPIRE SE INSERIRLI *@
-                            @* <button id="detailEditBtn" class="btn btn-outline-primary btn-sm">Modifica</button>
-                            <button id="detailDeleteBtn" class="btn btn-outline-danger btn-sm">Elimina</button> *@
+                            <button id="detailEditBtn" class="btn btn-outline-primary btn-sm">Modifica</button>
+                            <button id="detailDeleteBtn" class="btn btn-outline-danger btn-sm">Elimina</button>
                         </div>
                     </div>
                 </div>
@@ -130,6 +134,7 @@
                     <h6 class="card-title">Azioni rapide</h6>
                     <button id="exportBtn2" class="btn btn-success btn-sm w-100 mb-2">Esporta</button>
                     <button id="resetView" class="btn btn-outline-secondary btn-sm w-100 mb-2">Reset filtri</button>
+                    <button id="addManualBtn" class="btn btn-primary btn-sm w-100 mb-2">Aggiungi manualmente</button>
                     <a href="http://192.168.178.131:5178/qr/preview" target="_blank" rel="noopener" role="button"
                        class="btn btn-outline-primary btn-sm w-100 text-decoration-none">QR Manager</a>
                     </div>
@@ -137,6 +142,43 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Modal per inserimento/modifica manuale visitatore -->
+<div class="modal fade" id="manualModal" tabindex="-1" aria-labelledby="manualModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="manualForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="manualModalLabel">Aggiungi visitatore</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="manualEditingId" value="" />
+          <div class="mb-3">
+            <label class="form-label">Nome *</label>
+            <input id="manualFirstName" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Cognome *</label>
+            <input id="manualLastName" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input id="manualEmail" type="email" class="form-control" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">QR (opzionale)</label>
+            <input id="manualQr" class="form-control" placeholder="es. main-entrance / side-door" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="manualCancel" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" id="manualSubmit" class="btn btn-success">Conferma ingresso</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 @section scripts {

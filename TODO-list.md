@@ -9,7 +9,6 @@
 
 ## DA FARE
 
-+ CRUD entry [?]
 + check-out msg
 + date picker [FATTO]
 + Badge verdi “Presente" [FATTO]
@@ -17,6 +16,10 @@
 + Excel migliorato con formattazione, colori, bold, date/time [FATTO]
 + Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?)) [FATTO]
 + Fix Duration 1 hour late [FATTO]
++ CRUD manuale per reception [FATTO]
++ Checkout con:
+	- o local storage
+	- o cookie server
 
 ## EXTRA
 
@@ -24,6 +27,8 @@
 + ID nella sidebar [FATTO]
 + Notifiche chek-in reception (?)
 + Picchi orari per reception (?)
++ dati di giorni passati (?)
++ riepilogo dati inseriti prima di inviarli (?)
 
 ## INFRASTRUTTURA
 
