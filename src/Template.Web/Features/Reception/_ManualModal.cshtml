@@ -1,0 +1,36 @@
+<!-- Modal per inserimento/modifica manuale visitatore (partial) -->
+<div class="modal fade" id="manualModal" tabindex="-1" aria-labelledby="manualModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="manualForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="manualModalLabel">Aggiungi visitatore</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="manualEditingId" value="" />
+          <div class="mb-3">
+            <label class="form-label">Nome *</label>
+            <input id="manualFirstName" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Cognome *</label>
+            <input id="manualLastName" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input id="manualEmail" type="email" class="form-control" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">QR (opzionale)</label>
+            <input id="manualQr" class="form-control" placeholder="es. main-entrance / side-door" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="manualCancel" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" id="manualSubmit" class="btn btn-success">Conferma ingresso</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
