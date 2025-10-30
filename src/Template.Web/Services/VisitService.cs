@@ -1,0 +1,224 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Template.Services; // VisitRecord, TemplateDbContext
+using Template.Services.Shared;
+using Template.Web.Models;
+
+namespace Template.Web.Services
+{
+    // Servizio per la gestione delle visite
+    public class VisitService
+    {
+        private readonly TemplateDbContext _db;
+        private readonly ILogger _logger;
+        private readonly Template.Web.SignalR.IPublishDomainEvents _publisher;
+
+        // Costruttore
+        public VisitService(TemplateDbContext db, ILogger logger, Template.Web.SignalR.IPublishDomainEvents publisher)
+        {
+            _db = db;
+            _logger = logger;
+            _publisher = publisher;
+        }
+
+        // Genera un codice corto da 5 caratteri
+        private static string ShortFromGuid(Guid id)
+        {
+            const string alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            var bytes = id.ToByteArray();
+            ulong val = 0;
+            for (int i = 0; i < 6; i++) val = (val << 8) | bytes[i];
+            var sb = new System.Text.StringBuilder();
+            while (sb.Length < 5)
+            {
+                var idx = (int)(val % (ulong)alphabet.Length);
+                sb.Insert(0, alphabet[idx]);
+                val /= (ulong)alphabet.Length;
+                if (val == 0) val = (ulong)(DateTime.UtcNow.Ticks & 0xFFFFFFFFFFFF);
+            }
+            return sb.ToString().Substring(0, 5);
+        }
+
+        // Mappa VisitRecord a VisitDto
+        private VisitDto MapToDto(VisitRecord v) => new VisitDto
+        {
+            Id = v.Id,
+            ShortCode = ShortFromGuid(v.Id),
+            QrKey = v.QrKey,
+            Email = v.Email,
+            FirstName = v.FirstName,
+            LastName = v.LastName,
+            CheckInTime = v.CheckInTime,
+            CheckOutTime = v.CheckOutTime
+        };
+
+        // lista paginata
+        public async Task<List<VisitDto>> GetVisitsAsync(string q, DateTime? start, DateTime? end, bool presentOnly, int page, int pageSize)
+        {
+            var query = _db.VisitRecords.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var lower = q.ToLowerInvariant();
+                query = query.Where(v =>
+                    (v.Email ?? "").ToLower().Contains(lower) ||
+                    (v.FirstName ?? "").ToLower().Contains(lower) ||
+                    (v.LastName ?? "").ToLower().Contains(lower) ||
+                    (v.QrKey ?? "").ToLower().Contains(lower));
+            }
+            if (start.HasValue) query = query.Where(v => v.CheckInTime >= start.Value);
+            if (end.HasValue) query = query.Where(v => v.CheckInTime <= end.Value.AddDays(1).AddTicks(-1));
+            if (presentOnly) query = query.Where(v => v.CheckOutTime == null);
+            query = query.OrderByDescending(x => x.CheckInTime);
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 1000);
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            return items.Select(x => MapToDto(x)).ToList();
+        }
+
+        // lista completa
+        public async Task<List<VisitDto>> GetVisitsListAsync(string q, DateTime? start, DateTime? end, bool presentOnly)
+        {
+            var query = _db.VisitRecords.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var lower = q.ToLowerInvariant();
+                query = query.Where(v =>
+                    (v.Email ?? "").ToLower().Contains(lower) ||
+                    (v.FirstName ?? "").ToLower().Contains(lower) ||
+                    (v.LastName ?? "").ToLower().Contains(lower) ||
+                    (v.QrKey ?? "").ToLower().Contains(lower));
+            }
+            if (start.HasValue) query = query.Where(v => v.CheckInTime >= start.Value);
+            if (end.HasValue) query = query.Where(v => v.CheckInTime <= end.Value.AddDays(1).AddTicks(-1));
+            if (presentOnly) query = query.Where(v => v.CheckOutTime == null);
+            var items = await query.OrderByDescending(x => x.CheckInTime).ToListAsync();
+            return items.Select(x => MapToDto(x)).ToList();
+        }
+
+        // Checkout
+        public async Task<VisitDto> CheckoutAsync(Guid id)
+        {
+            var v = await _db.VisitRecords.FindAsync(id);
+            if (v == null) return null;
+            if (v.CheckOutTime != null) return MapToDto(v);
+            v.CheckOutTime = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            var dto = MapToDto(v);
+            try { _publisher?.Publish(new Template.Web.SignalR.Hubs.Events.UpdateVisitEvent { IdGroup = Guid.Empty, VisitDto = dto }); } catch { }
+            return dto;
+        }
+
+        // Modifica
+        public async Task<VisitDto> UpdateAsync(Guid id, Template.Web.Models.UpdateVisitRequest model)
+        {
+            var v = await _db.VisitRecords.FindAsync(id);
+            if (v == null) return null;
+            if (model.Email != null) v.Email = model.Email;
+            if (model.FirstName != null) v.FirstName = model.FirstName;
+            if (model.LastName != null) v.LastName = model.LastName;
+            if (model.QrKey != null) v.QrKey = model.QrKey;
+            await _db.SaveChangesAsync();
+            var dto = MapToDto(v);
+            try { _publisher?.Publish(new Template.Web.SignalR.Hubs.Events.UpdateVisitEvent { IdGroup = Guid.Empty, VisitDto = dto }); } catch { }
+            return dto;
+        }
+
+        // Cancellazione
+        public async Task<bool> DeleteAsync(Guid id)
+        {
+            var v = await _db.VisitRecords.FindAsync(id);
+            if (v == null) return false;
+            _db.VisitRecords.Remove(v);
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        // Creazione manuale
+        public async Task<VisitCreateResult> CreateAsync(Template.Web.Models.CreateVisitRequest model)
+        {
+            // normalize
+            var incomingEmail = string.IsNullOrWhiteSpace(model.Email) ? null : model.Email.Trim();
+            var incomingEmailLower = incomingEmail?.ToLowerInvariant();
+            var incomingQr = string.IsNullOrWhiteSpace(model.QrKey) ? null : model.QrKey.Trim();
+
+            using (var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable))
+            {
+                if (!string.IsNullOrWhiteSpace(incomingEmailLower))
+                {
+                    var existing = await _db.VisitRecords.AsNoTracking()
+                        .Where(v => v.CheckOutTime == null && v.Email != null && v.Email.ToLower() == incomingEmailLower)
+                        .OrderByDescending(v => v.CheckInTime)
+                        .FirstOrDefaultAsync();
+                    if (existing != null)
+                    {
+                        var existingDto = MapToDto(existing);
+                        return new VisitCreateResult { IsConflict = true, Message = "Hai già effettuato il check‑in", ExistingVisit = existingDto, Visit = null };
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(incomingQr))
+                {
+                    var existingByQr = await _db.VisitRecords.AsNoTracking()
+                        .Where(v => v.CheckOutTime == null && v.QrKey != null && v.QrKey == incomingQr)
+                        .FirstOrDefaultAsync();
+                    if (existingByQr != null)
+                    {
+                        var existingDto = MapToDto(existingByQr);
+                        return new VisitCreateResult { IsConflict = true, Message = "Hai già effettuato il check‑in (QR registrato)", ExistingVisit = existingDto, Visit = null };
+                    }
+                }
+
+                var visit = new VisitRecord
+                {
+                    Id = Guid.NewGuid(),
+                    QrKey = model.QrKey,
+                    Email = model.Email,
+                    FirstName = model.FirstName,
+                    LastName = model.LastName,
+                    CheckInTime = DateTime.UtcNow,
+                    CheckOutTime = null
+                };
+
+                _db.VisitRecords.Add(visit);
+                await _db.SaveChangesAsync();
+
+                if (!string.IsNullOrWhiteSpace(incomingEmail))
+                {
+                    var other = await _db.VisitRecords.AsNoTracking()
+                        .Where(v => v.Id != visit.Id && v.CheckOutTime == null && v.Email != null)
+                        .ToListAsync();
+                    var conflict = other.FirstOrDefault(v => string.Equals((v.Email ?? string.Empty).Trim(), incomingEmail, StringComparison.OrdinalIgnoreCase));
+                    if (conflict != null)
+                    {
+                        await tx.RollbackAsync();
+                        var existingDto = MapToDto(conflict);
+                        return new VisitCreateResult { IsConflict = true, Message = "Hai già effettuato il check‑in", ExistingVisit = existingDto, Visit = null };
+                    }
+                }
+
+                await tx.CommitAsync();
+
+                var dto = MapToDto(visit);
+                try { _publisher?.Publish(new Template.Web.SignalR.Hubs.Events.UpdateVisitEvent { IdGroup = Guid.Empty, VisitDto = dto }); } catch { }
+                return new VisitCreateResult { IsConflict = false, Message = null, ExistingVisit = null, Visit = dto };
+            }
+        }
+
+        // apri visita per email
+        public async Task<VisitDto> GetOpenByEmailAsync(string email)
+        {
+            var emailTrim = email.Trim();
+            var openCandidates = await _db.VisitRecords.AsNoTracking()
+                .Where(x => x.CheckOutTime == null && x.Email != null)
+                .OrderByDescending(x => x.CheckInTime)
+                .ToListAsync();
+            var v = openCandidates.FirstOrDefault(x => string.Equals((x.Email ?? string.Empty).Trim(), emailTrim, StringComparison.OrdinalIgnoreCase));
+            if (v == null) return null;
+            return MapToDto(v);
+        }
+    }
+}
