@@ -9,7 +9,6 @@
 
 ## DA FARE
 
-+ check-out msg
 + date picker [FATTO]
 + Badge verdi “Presente" [FATTO]
 + da quanto tempo è dentro [FATTO]
@@ -17,7 +16,7 @@
 + Controllo anti-checkin multipli e in caso "vuoi fare check-out?" (rileva automaticamente(?)) [FATTO]
 + Fix Duration 1 hour late [FATTO]
 + CRUD manuale per reception [FATTO]
-+ Checkout con:
++ Checkout con qualsiasi qr con:
 	- o local storage
 	- o cookie server
 

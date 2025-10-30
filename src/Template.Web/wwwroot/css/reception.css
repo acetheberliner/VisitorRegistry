@@ -79,7 +79,7 @@ width: 95%;
 
 /* Buttons: primary uses logo accent, ghost uses accent color */
 .btn-primary {
-  background: linear-gradient(180deg, var(--logo-accent), var(--logo-accent-60));
+  background: #2563EB;
   color: #fff;
   box-shadow: 0 8px 18px rgba(255,90,60,0.12);
 }
