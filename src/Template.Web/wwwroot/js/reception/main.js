@@ -84,7 +84,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // bindings quick actions
   document.getElementById('applyFilters')?.addEventListener('click', loadAndRender);
-  document.getElementById('clearFilters')?.addEventListener('click', () => { document.getElementById('filterSearch') && (document.getElementById('filterSearch').value = ''); document.getElementById('filterStart') && (document.getElementById('filterStart').value = ''); document.getElementById('filterEnd') && (document.getElementById('filterEnd').value = ''); document.getElementById('filterPresent') && (document.getElementById('filterPresent').checked = false); loadAndRender(); });
+  document.getElementById('clearFilters')?.addEventListener('click', () => { document.getElementById('filterSearch') && (document.getElementById('filterSearch').value = '');
+    document.getElementById('filterStart') && (document.getElementById('filterStart').value = '');
+    document.getElementById('filterEnd') && (document.getElementById('filterEnd').value = '');
+    document.getElementById('filterPresent') && (document.getElementById('filterPresent').checked = false);
+    loadAndRender(); 
+  });
   document.getElementById('exportBtn')?.addEventListener('click', () => { location.href = api.exportUrl(buildQueryFromForm()); });
   document.getElementById('exportBtn2')?.addEventListener('click', () => { location.href = api.exportUrl(buildQueryFromForm()); });
 

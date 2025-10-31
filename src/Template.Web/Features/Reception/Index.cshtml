@@ -52,21 +52,18 @@
                 <div class="card-body">
                     <div class="row gy-2 gx-2 align-items-center">
                         <div class="col-md-5">
-                            <input id="filterSearch" class="form-control" placeholder="Cerca email, nome, cognome, QR..." />
+                            <input id="filterSearch" class="form-control" placeholder="Ricerca per email, nome, cognome, ID" />
                         </div>
                         <div class="col-auto">
                             <input id="filterStart" type="date" class="form-control" />
                         </div>
-                        <div class="col-auto">
-                            <input id="filterEnd" type="date" class="form-control" />
-                        </div>
                         <div class="col-auto d-flex align-items-center">
-                            <input id="filterPresent" class="form-check-input me-1" type="checkbox" />
+                            <input id="filterPresent" class="form-check-input mx-1 mt-0" type="checkbox" />
                             <label class="form-check-label mb-0">Solo presenti</label>
                         </div>
                         <div class="col-auto">
-                            <button id="applyFilters" class="btn btn-outline-secondary btn-sm">Applica</button>
-                            <button id="clearFilters" class="btn btn-outline-secondary btn-sm">Reset</button>
+                            <button id="applyFilters" class="btn btn-outline-primary btn-sm mx-2">Applica</button>
+                            <button id="clearFilters" class="btn btn-outline-danger btn-sm">Cancella filtri</button>
                         </div>
                         <div class="col text-end">
                             <button id="exportBtn" class="btn btn-success btn-sm">Esporta</button>

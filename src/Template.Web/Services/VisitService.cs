@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using Template.Services; // VisitRecord, TemplateDbContext
 using Template.Services.Shared;
 using Template.Web.Models;
@@ -59,44 +60,145 @@ namespace Template.Web.Services
         // lista paginata
         public async Task<List<VisitDto>> GetVisitsAsync(string q, DateTime? start, DateTime? end, bool presentOnly, int page, int pageSize)
         {
+            // riconosciamo se la query è un ShortCode o un candidato shortcode (1-5 caratteri alfanumerici)
+            var trimmedQ = string.IsNullOrWhiteSpace(q) ? string.Empty : q.Trim();
+            bool isExactGuid = Guid.TryParse(trimmedQ, out var parsedGuid);
+            bool isShortCodeCandidate = Regex.IsMatch(trimmedQ, @"^[0-9A-Z]{1,5}$", RegexOptions.IgnoreCase);
+
             var query = _db.VisitRecords.AsNoTracking().AsQueryable();
-            if (!string.IsNullOrWhiteSpace(q))
+
+            // Se la query è un GUID esatto, filtriamo per Id (più efficiente)
+            if (isExactGuid)
             {
-                var lower = q.ToLowerInvariant();
+                query = query.Where(v => v.Id == parsedGuid);
+            }
+            // se non è ShortCode candidate, possiamo applicare il filtro 'q' direttamente in SQL (più efficiente)
+            else if (!isShortCodeCandidate && !string.IsNullOrWhiteSpace(trimmedQ))
+            {
+                var lower = trimmedQ.ToLowerInvariant();
                 query = query.Where(v =>
                     (v.Email ?? "").ToLower().Contains(lower) ||
                     (v.FirstName ?? "").ToLower().Contains(lower) ||
                     (v.LastName ?? "").ToLower().Contains(lower) ||
                     (v.QrKey ?? "").ToLower().Contains(lower));
             }
-            if (start.HasValue) query = query.Where(v => v.CheckInTime >= start.Value);
-            if (end.HasValue) query = query.Where(v => v.CheckInTime <= end.Value.AddDays(1).AddTicks(-1));
-            if (presentOnly) query = query.Where(v => v.CheckOutTime == null);
-            query = query.OrderByDescending(x => x.CheckInTime);
-            page = Math.Max(1, page);
-            pageSize = Math.Clamp(pageSize, 1, 1000);
-            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-            return items.Select(x => MapToDto(x)).ToList();
+
+            // applichiamo filtri di data e presenti
+            // Normalizziamo gli estremi:
+            // - se sono specificati start+end -> intervallo [start.Date .. end.Date endOfDay]
+            // - se è specificato solo start -> consideriamo la singola giornata start.Date
+            // - se è specificato solo end -> consideriamo la singola giornata end.Date
+            DateTime? startRange = null;
+            DateTime? endRange = null;
+            if (start.HasValue && end.HasValue)
+            {
+                startRange = start.Value.Date;
+                endRange = end.Value.Date.AddDays(1).AddTicks(-1);
+            }
+            else if (start.HasValue)
+            {
+                startRange = start.Value.Date;
+                endRange = start.Value.Date.AddDays(1).AddTicks(-1);
+            }
+            else if (end.HasValue)
+            {
+                startRange = end.Value.Date;
+                endRange = end.Value.Date.AddDays(1).AddTicks(-1);
+            }
+
+            if (startRange.HasValue && endRange.HasValue)
+            {
+                // record la cui entrata O uscita rientrano nell'intervallo [startRange, endRange]
+                query = query.Where(v =>
+                    (v.CheckInTime >= startRange.Value && v.CheckInTime <= endRange.Value) ||
+                    (v.CheckOutTime != null && v.CheckOutTime >= startRange.Value && v.CheckOutTime <= endRange.Value));
+            }
+
+            // se la query è un candidato shortCode (1-5 chars alfanumerici) filtriamo in memoria per ShortCode (Contains)
+            if (isShortCodeCandidate)
+            {
+                // prendi i record candidati (dopo avere applicato date/presentOnly), mappa e filtra in memoria con Contains per partial match
+                var items = await query.OrderByDescending(x => x.CheckInTime).ToListAsync();
+                var code = trimmedQ.ToUpperInvariant();
+                var dtos = items.Select(x => MapToDto(x))
+                                .Where(d => (d.ShortCode ?? string.Empty).ToUpperInvariant().Contains(code))
+                                .ToList();
+
+                // applica paginazione in memoria
+                page = Math.Max(1, page);
+                pageSize = Math.Clamp(pageSize, 1, 1000);
+                return dtos.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            }
+            else
+            {
+                // normale percorso: DB -> pagina -> mappa DTO
+                query = query.OrderByDescending(x => x.CheckInTime);
+                page = Math.Max(1, page);
+                pageSize = Math.Clamp(pageSize, 1, 1000);
+                var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+                return items.Select(x => MapToDto(x)).ToList();
+            }
         }
 
         // lista completa
         public async Task<List<VisitDto>> GetVisitsListAsync(string q, DateTime? start, DateTime? end, bool presentOnly)
         {
+            var trimmedQ = string.IsNullOrWhiteSpace(q) ? string.Empty : q.Trim();
+            bool isExactGuid = Guid.TryParse(trimmedQ, out var parsedGuid);
+            bool isShortCodeCandidate = Regex.IsMatch(trimmedQ, @"^[0-9A-Z]{1,5}$", RegexOptions.IgnoreCase);
             var query = _db.VisitRecords.AsNoTracking().AsQueryable();
-            if (!string.IsNullOrWhiteSpace(q))
+
+            // GUID exact
+            if (isExactGuid)
             {
-                var lower = q.ToLowerInvariant();
+                query = query.Where(v => v.Id == parsedGuid);
+            }
+            else if (!isShortCodeCandidate && !string.IsNullOrWhiteSpace(trimmedQ))
+            {
+                var lower = trimmedQ.ToLowerInvariant();
                 query = query.Where(v =>
                     (v.Email ?? "").ToLower().Contains(lower) ||
                     (v.FirstName ?? "").ToLower().Contains(lower) ||
                     (v.LastName ?? "").ToLower().Contains(lower) ||
                     (v.QrKey ?? "").ToLower().Contains(lower));
             }
-            if (start.HasValue) query = query.Where(v => v.CheckInTime >= start.Value);
-            if (end.HasValue) query = query.Where(v => v.CheckInTime <= end.Value.AddDays(1).AddTicks(-1));
-            if (presentOnly) query = query.Where(v => v.CheckOutTime == null);
+
+            // Normalizziamo gli estremi per la lista completa (come sopra)
+            DateTime? sRange = null;
+            DateTime? eRange = null;
+            if (start.HasValue && end.HasValue)
+            {
+                sRange = start.Value.Date;
+                eRange = end.Value.Date.AddDays(1).AddTicks(-1);
+            }
+            else if (start.HasValue)
+            {
+                sRange = start.Value.Date;
+                eRange = start.Value.Date.AddDays(1).AddTicks(-1);
+            }
+            else if (end.HasValue)
+            {
+                sRange = end.Value.Date;
+                eRange = end.Value.Date.AddDays(1).AddTicks(-1);
+            }
+
+            if (sRange.HasValue && eRange.HasValue)
+            {
+                query = query.Where(v =>
+                    (v.CheckInTime >= sRange.Value && v.CheckInTime <= eRange.Value) ||
+                    (v.CheckOutTime != null && v.CheckOutTime >= sRange.Value && v.CheckOutTime <= eRange.Value));
+            }
+
             var items = await query.OrderByDescending(x => x.CheckInTime).ToListAsync();
-            return items.Select(x => MapToDto(x)).ToList();
+            var dtos = items.Select(x => MapToDto(x)).ToList();
+
+            if (isShortCodeCandidate)
+            {
+                var code = trimmedQ.ToUpperInvariant();
+                return dtos.Where(d => (d.ShortCode ?? string.Empty).ToUpperInvariant().Contains(code)).ToList();
+            }
+
+            return dtos;
         }
 
         // Checkout
