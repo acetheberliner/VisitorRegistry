@@ -27,37 +27,68 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Auto-checkout: se esiste openVisitId in localStorage prova a fare checkout e redirigere alla Summary.
+        // Auto-checkout robusto: supporta GUID o shortCode (fallback)
         (function () {
             try {
                 var urlParams = new URLSearchParams(window.location.search || '');
                 if (urlParams.get('force') === 'true') return;
 
-                var openId = null;
-                try { openId = localStorage.getItem('openVisitId'); } catch (e) { openId = null; }
+                var raw = null;
+                try { raw = localStorage.getItem('openVisitId'); } catch (e) { raw = null; }
+                if (!raw) { console.debug('auto-checkout: nessun openVisitId in localStorage'); return; }
 
-                if (!openId) return;
+                console.debug('auto-checkout: trovato openVisitId=', raw);
 
-                fetch(basePath() + 'api/visits/' + encodeURIComponent(openId) + '/checkout', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'Accept': 'application/json' }
-                })
+                function isShortCode(s) { return /^[0-9A-Z]{1,5}$/i.test(s); }
+
+                function doCheckoutByGuid(guid) {
+                    console.debug('auto-checkout: tentativo checkout GUID', guid);
+                    fetch(basePath() + 'api/visits/' + encodeURIComponent(guid) + '/checkout', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json' }
+                    })
                     .then(function (res) {
                         if (!res.ok) {
-                            try { localStorage.removeItem('openVisitId'); } catch (e) { }
+                            console.warn('auto-checkout: checkout response not ok', res.status);
+                            if (res.status === 404) { try { localStorage.removeItem('openVisitId'); } catch (e) {} }
                             return null;
                         }
                         return res.json();
                     })
                     .then(function (dto) {
                         if (!dto) return;
-                        try { localStorage.removeItem('openVisitId'); } catch (e) { }
+                        try { localStorage.removeItem('openVisitId'); } catch (e) {}
                         window.location.href = basePath() + 'Visitor/Summary?id=' + encodeURIComponent(dto.Id) + '&checkedOut=true';
                     })
                     .catch(function (err) {
                         console.warn('auto-checkout error', err);
                     });
+                }
+
+                if (isShortCode(raw)) {
+                    // risolvi lo ShortCode a GUID tramite la ricerca
+                    console.debug('auto-checkout: raw sembra shortCode, risolvo via API', raw);
+                    fetch(basePath() + 'api/visits?q=' + encodeURIComponent(raw), { credentials: 'same-origin' })
+                        .then(function (res) {
+                            if (!res.ok) { console.warn('auto-checkout: resolve failed', res.status); try { localStorage.removeItem('openVisitId'); } catch (e) {} return null; }
+                            return res.json();
+                        })
+                        .then(function (arr) {
+                            if (!arr || !Array.isArray(arr) || arr.length === 0) { try { localStorage.removeItem('openVisitId'); } catch (e) {} return; }
+                            var code = raw.toUpperCase();
+                            var found = arr.find(function (v) {
+                                var sc = (v.ShortCode || v.shortCode || '').toUpperCase();
+                                return sc.indexOf(code) !== -1;
+                            });
+                            if (found && (found.Id || found.id)) doCheckoutByGuid(found.Id || found.id);
+                            else try { localStorage.removeItem('openVisitId'); } catch (e) {}
+                        })
+                        .catch(function (err) { console.warn('auto-checkout resolve error', err); });
+                } else {
+                    // presunto GUID
+                    doCheckoutByGuid(raw);
+                }
             } catch (e) { console.warn('auto-checkout init failed', e); }
         })();
 

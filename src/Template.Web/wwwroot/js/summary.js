@@ -32,16 +32,24 @@
     });
 })();
 
-// Salvataggio/rimozione openVisitId in localStorage per auto-checkout client
+// Salvataggio/rimozione openVisitId (GUID) in localStorage per abilitare checkout automatico
 (function () {
     try {
-        // Riprendiamo l'ID dal visitor
-        var id = document.getElementById('shortCode') ? document.getElementById('shortCode').innerText : null;
-        
-        // se shortCode (id) presente e la pagina è summary, allora è checkin o checkout
-        if (!id) { try { localStorage.removeItem('openVisitId'); } catch (e) {} return; }
+        var receipt = document.getElementById('receiptCard');
+        if (!receipt) return;
 
-        // Salva l'ID del check‑in per permettere il checkout automatico su successiva scansione
-        try { localStorage.setItem('openVisitId', id); } catch (e) {}
-    } catch (e) { /* localStorage non disponibile */ }
+        var visitId = receipt.dataset && receipt.dataset.visitId ? receipt.dataset.visitId : null;
+        var checkedOut = receipt.dataset && receipt.dataset.checkedout ? (receipt.dataset.checkedout === 'true') : false;
+
+        if (checkedOut) {
+            try { localStorage.removeItem('openVisitId'); } catch (e) {}
+            return;
+        }
+
+        if (visitId) {
+            try { localStorage.setItem('openVisitId', visitId); } catch (e) {}
+        }
+    } catch (e) {
+        console.warn('localStorage sync failed', e);
+    }
 })();
