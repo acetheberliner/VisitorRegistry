@@ -23,5 +23,22 @@ namespace Template.Services.Shared
 
         [NotMapped]
         public bool IsPresent => CheckOutTime == null && CheckInTime != default;
+
+        public static string GenerateShortCode(Guid id)
+        {
+            const string alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            var bytes = id.ToByteArray();
+            ulong val = 0;
+            for (int i = 0; i < 6; i++) val = (val << 8) | bytes[i];
+            var sb = new System.Text.StringBuilder();
+            while (sb.Length < 5)
+            {
+                var idx = (int)(val % (ulong)alphabet.Length);
+                sb.Insert(0, alphabet[idx]);
+                val /= (ulong)alphabet.Length;
+                if (val == 0) val = (ulong)(DateTime.UtcNow.Ticks & 0xFFFFFFFFFFFF);
+            }
+            return sb.ToString().Substring(0, 5);
+        }
     }
 }
