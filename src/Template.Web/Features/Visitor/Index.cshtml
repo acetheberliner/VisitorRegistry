@@ -60,5 +60,51 @@
 </div>
 
 @section scripts {
+	<script>
+		// ensure APP_BASE is available for client scripts
+		window.APP_BASE = window.APP_BASE || '@Url.Content("~/")';
+	</script>
+
 	<script src="@Url.Content("~/js/visitor.js")"></script>
+
+	<script>
+		// Auto-checkout: if localStorage has openVisitId, attempt server checkout and redirect to Summary.
+		(function () {
+			try {
+				// Do not auto-checkout if forced to show form
+				var urlParams = new URLSearchParams(window.location.search || '');
+				if (urlParams.get('force') === 'true') return;
+
+				var openId = null;
+				try { openId = localStorage.getItem('openVisitId'); } catch (e) { openId = null; }
+
+				if (!openId) return;
+
+				// Attempt checkout via API
+				fetch((window.APP_BASE || '/') + 'api/visits/' + encodeURIComponent(openId) + '/checkout', {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Accept': 'application/json' }
+				})
+					.then(function (res) {
+						if (!res.ok) {
+							// if checkout fails (404 or other), remove id to avoid infinite loop
+							try { localStorage.removeItem('openVisitId'); } catch (e) { }
+							return null;
+						}
+						return res.json();
+					})
+					.then(function (dto) {
+						if (!dto) return;
+						try { localStorage.removeItem('openVisitId'); } catch (e) { }
+						// redirect to summary page for the checked-out visit
+						window.location.href = (window.APP_BASE || '/') + 'Visitor/Summary?id=' + encodeURIComponent(dto.Id) + '&checkedOut=true';
+					})
+					.catch(function (err) {
+						// network/other error: keep the id but log for debugging
+						console.warn('auto-checkout error', err);
+					});
+			} catch (e) { console.warn('auto-checkout init failed', e); }
+		})();
+	</script>
 }
