@@ -27,6 +27,40 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        // Auto-checkout: se esiste openVisitId in localStorage prova a fare checkout e redirigere alla Summary.
+        (function () {
+            try {
+                var urlParams = new URLSearchParams(window.location.search || '');
+                if (urlParams.get('force') === 'true') return;
+
+                var openId = null;
+                try { openId = localStorage.getItem('openVisitId'); } catch (e) { openId = null; }
+
+                if (!openId) return;
+
+                fetch(basePath() + 'api/visits/' + encodeURIComponent(openId) + '/checkout', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(function (res) {
+                        if (!res.ok) {
+                            try { localStorage.removeItem('openVisitId'); } catch (e) { }
+                            return null;
+                        }
+                        return res.json();
+                    })
+                    .then(function (dto) {
+                        if (!dto) return;
+                        try { localStorage.removeItem('openVisitId'); } catch (e) { }
+                        window.location.href = basePath() + 'Visitor/Summary?id=' + encodeURIComponent(dto.Id) + '&checkedOut=true';
+                    })
+                    .catch(function (err) {
+                        console.warn('auto-checkout error', err);
+                    });
+            } catch (e) { console.warn('auto-checkout init failed', e); }
+        })();
+
         var form = document.getElementById('visitorForm');
         if (!form) return;
 
