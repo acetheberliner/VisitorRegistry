@@ -5,17 +5,7 @@
     var isCheckedOut = (Context.Request.Query["checkedOut"].ToString() ?? string.Empty).ToLowerInvariant() == "true";
 }
 
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
-<style>
-    body { font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: linear-gradient(90deg,#eef3f7 0,#f7fbfd 100%); color:#1f2937; -webkit-font-smoothing:antialiased; }
-    .container-fluid { padding:1.6rem 0; width:95%; }
-    .card { border-radius:12px; background:linear-gradient(180deg,#fff 0,#fbfdff 100%); box-shadow:0 8px 20px rgba(15,23,42,0.06); border:1px solid rgba(15,23,42,0.04); }
-    .card .card-body { border-radius:10px; padding:1.4rem; background:#fff; }
-    .badge-success { background:transparent; color:#059669; padding:.45rem .75rem; border:1px solid #059669; border-radius:12px; display:inline-block; }
-    .muted-small { color:#6b7280; font-size:.95rem; }
-    .btn { border-radius:10px; }
-    .btn-primary { background:#FF5A3C; color:#fff; border:none; }
-</style>
+<link rel="stylesheet" href="@Url.Content("~/css/summary.css")" />
 
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
@@ -42,53 +32,7 @@
     </div>
 </div>
 
-<!-- Script: download ricevuta e sincronizzazione openVisitId in localStorage -->
+@* Download ricevuta come immagine *@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script>
-/* Download ricevuta come immagine */
-(function () {
-    var btn = document.getElementById('downloadReceiptBtn');
-    if (!btn) return;
-
-    function filenameSafe(s){ return String(s || 'receipt').replace(/[^a-z0-9_\-]/gi, '_').toLowerCase(); }
-
-    btn.addEventListener('click', function () {
-        var card = document.getElementById('receiptCard');
-        if (!card) { alert('Elemento ricevuta non trovato.'); return; }
-
-        var orig = btn.style.display;
-        btn.style.display = 'none';
-        var scale = Math.max(1, window.devicePixelRatio || 1);
-
-        html2canvas(card, { scale: scale, useCORS: true, backgroundColor: '#ffffff' })
-            .then(function (canvas) {
-                try {
-                    var idText = document.getElementById('shortCode') ? document.getElementById('shortCode').innerText : '';
-                    var fname = 'ricevuta-' + filenameSafe(idText) + '.png';
-                    canvas.toBlob(function (blob) {
-                        var a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = fname;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                    }, 'image/png');
-                } finally { btn.style.display = orig; }
-            })
-            .catch(function (err) { btn.style.display = orig; console.error('Errore generazione immagine ricevuta', err); alert('Errore generazione ricevuta.'); });
-    });
-})();
-
-/* Salvataggio/rimozione openVisitId in localStorage per auto-checkout */
-(function () {
-    try {
-        var id = '@Model.Id';
-        var checkedOut = @((isCheckedOut) ? "true" : "false");
-        if (checkedOut === true || checkedOut === "true") {
-            try { localStorage.removeItem('openVisitId'); } catch (e) {}
-        } else {
-            try { localStorage.setItem('openVisitId', id); } catch (e) {}
-        }
-    } catch (e) { /* localStorage non disponibile */ }
-})();
-</script>
+@* Local storage logic *@
+<script src="@Url.Content("~/js/summary.js")"></script>
