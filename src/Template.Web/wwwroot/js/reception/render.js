@@ -68,7 +68,12 @@ export function renderRow(v) {
     + '<td>' + cout + '</td>'
     + '<td>' + actionsHtml + '</td>';
 
-  try { row.dataset.shortcode = short; row.dataset.qr = qr; } catch (e) { }
+  try {
+    // salvo anche il valore grezzo/ISO del CheckInTime per calcoli affidabili
+    row.dataset.shortcode = short;
+    row.dataset.qr = qr;
+    row.dataset.checkintime = (v.CheckInTime || v.checkInTime) || ''; // ISO o stringa grezza
+  } catch (e) { }
 
   // bindings
   row.onclick = function () { openDetail(id, v); };
@@ -81,9 +86,12 @@ export function renderRow(v) {
 export function updateStats() {
   const tbody = document.querySelector('#visits tbody');
   if (!tbody) return;
-  const rows = tbody.getElementsByTagName('tr');
+  const rows = Array.from(tbody.getElementsByTagName('tr'));
+
   const totalRecordsEl = document.getElementById('totalRecords');
   if (totalRecordsEl) totalRecordsEl.innerText = rows.length;
+
+  // conta presenti (colonna uscita vuota)
   let present = 0;
   for (let i = 0; i < rows.length; i++) {
     const usc = rows[i].getElementsByTagName('td')[5];
@@ -91,7 +99,26 @@ export function updateStats() {
   }
   const presentNowEl = document.getElementById('presentNow'); if (presentNowEl) presentNowEl.innerText = present;
   const visitCountEl = document.getElementById('visitCount'); if (visitCountEl) visitCountEl.innerText = 'Visitatori attualmente presenti: ' + present;
-  const first = tbody.getElementsByTagName('tr')[0]; const lastCheckinEl = document.getElementById('lastCheckin'); if (lastCheckinEl) lastCheckinEl.innerText = first ? (first.getElementsByTagName('td')[4].innerText || '-') : '-';
+
+  // Calcola l'ultimo check-in leggendo data-checkintime (più affidabile del testo formattato)
+  let latestTs = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const tsRaw = rows[i].dataset && rows[i].dataset.checkintime ? rows[i].dataset.checkintime : null;
+    if (!tsRaw) continue;
+    const parsed = Date.parse(tsRaw);
+    if (!isNaN(parsed) && parsed > latestTs) latestTs = parsed;
+  }
+
+  const lastCheckinEl = document.getElementById('lastCheckin');
+  if (lastCheckinEl) {
+    if (latestTs > 0) {
+      lastCheckinEl.innerText = formatDate(new Date(latestTs));
+    } else {
+      // fallback: usa la prima riga visuale (come prima)
+      const firstRow = tbody.getElementsByTagName('tr')[0];
+      lastCheckinEl.innerText = firstRow ? (firstRow.getElementsByTagName('td')[4].innerText || '-') : '-';
+    }
+  }
 }
 
 export function openDetail(id, v) {

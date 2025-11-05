@@ -19,6 +19,8 @@
 
 + Checkout con qualsiasi qr con local storage o cookie server: uso entrambi: local storage con priorità (viene scritto in Summary.cshtml (openVisitId) e letto automaticamente in Index.cshtml per eseguire il checkout via API quando si scansiona un altro QR, affidabile perche non soggetto a samesite) e cookie di fallback. opzionale perche su mobile/scan spesso fallisce per SameSite, dominio/porta non corrispondenti o scanner che aprono in contesti isolati. [FATTO]
 
++ Fix "last checkin" in reception [FATTO]
+
 ## EXTRA
 
 + scarica badge visitatore in galleria [FATTO]
