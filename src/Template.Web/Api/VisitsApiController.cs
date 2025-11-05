@@ -5,7 +5,7 @@ using System;
 using System.Threading.Tasks;
 using Template.Web.Services;
 using Template.Web.Models;
-using Template.Services; // <--- aggiunto: TemplateDbContext / VisitRecord namespace
+using Template.Services;
 
 namespace Template.Web.Api
 {
@@ -18,17 +18,20 @@ namespace Template.Web.Api
 		private readonly VisitService _visitService;
 		private readonly VisitExportService _exportService;
 
+		// Chiamata statica a DbInitializationService
 		public VisitsApiController(TemplateDbContext db, ILogger<VisitsApiController> logger, Template.Services.Shared.SharedService sharedService, Template.Web.SignalR.IPublishDomainEvents publisher)
 		{
 			_logger = logger;
 			// inizializza servizi (mantengono lo stesso db context internamente)
-			DbInitializationService.EnsureInitialized(db, _logger);
+			DbInitializationService.EnsureInitialized(db, _logger); // Corretto: chiamata statica
 			_visitService = new VisitService(db, _logger, publisher);
 			_exportService = new VisitExportService(_logger);
 		}
 
+		// restituisce lista di VisitDto in base ai parametri di query e filtri
 		[HttpGet]
 		[AllowAnonymous]
+
 		public virtual async Task<IActionResult> Get([FromQuery] string q = null, [FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] bool presentOnly = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 100)
 		{
 			var dto = await _visitService.GetVisitsAsync(q, start, end, presentOnly, page, pageSize);
@@ -36,6 +39,7 @@ namespace Template.Web.Api
 			return Ok(dto);
 		}
 
+		// Exporta le visite in un file Excel scaricabile
 		[HttpGet("export")]
 		[AllowAnonymous]
 		public virtual async Task<IActionResult> Export([FromQuery] string q = null, [FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] bool presentOnly = false)
@@ -46,6 +50,7 @@ namespace Template.Web.Api
 			return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
 		}
 
+		// Checkout di una visita esistente
 		[HttpPost("{id:guid}/checkout")]
 		[AllowAnonymous]
 		public virtual async Task<IActionResult> Checkout([FromRoute] Guid id)
@@ -55,6 +60,7 @@ namespace Template.Web.Api
 			return Ok(dto);
 		}
 
+		// Aggiorna una visita esistente
 		[HttpPut("{id:guid}")]
 		[AllowAnonymous]
 		public virtual async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateVisitRequest model)
@@ -65,6 +71,7 @@ namespace Template.Web.Api
 			return Ok(dto);
 		}
 
+		// Elimina una visita esistente
 		[HttpDelete("{id:guid}")]
 		[AllowAnonymous]
 		public virtual async Task<IActionResult> Delete([FromRoute] Guid id)
@@ -74,6 +81,7 @@ namespace Template.Web.Api
 			return NoContent();
 		}
 
+		// Crea una nuova visita (check-in)
 		[HttpPost]
 		[AllowAnonymous]
 		public virtual async Task<IActionResult> Create([FromBody] CreateVisitRequest model)
@@ -83,7 +91,8 @@ namespace Template.Web.Api
 			if (result.IsConflict) return Conflict(new { message = result.Message, visit = result.ExistingVisit });
 			return CreatedAtAction(nameof(Get), new { id = result.Visit.Id }, result.Visit);
 		}
-
+		
+		// Recupera una visita aperta in base all'email
 		[HttpGet("by-email")]
 		[AllowAnonymous]
 		public virtual async Task<IActionResult> GetOpenByEmail([FromQuery] string email)
