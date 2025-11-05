@@ -16,7 +16,6 @@ namespace Template.Services.Shared
         public string Email { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public string AdditionalInfo { get; set; }
 
         public DateTime CheckInTime { get; set; }
         public DateTime? CheckOutTime { get; set; }

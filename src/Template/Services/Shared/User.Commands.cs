@@ -23,7 +23,6 @@ namespace Template.Services.Shared
         public string Email { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public string AdditionalInfo { get; set; }
     }
 
     public class CheckoutVisitCommand
@@ -123,7 +122,6 @@ namespace Template.Services.Shared
                 Email = cmd.Email,
                 FirstName = cmd.FirstName,
                 LastName = cmd.LastName,
-                AdditionalInfo = cmd.AdditionalInfo,
                 CheckInTime = DateTime.UtcNow,
                 CheckOutTime = null
             };
