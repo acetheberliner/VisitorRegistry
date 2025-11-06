@@ -7,10 +7,11 @@
 
 <link rel="stylesheet" href="@Url.Content("~/css/summary.css")" />
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-0">
     <div class="row justify-content-center">
-        <div class="col-12 col-sm-10 col-md-8 col-lg-6">
-            <div class="card shadow-sm">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 text-center">
+            <img class="pb-4" src="~/images/check.png" width="120"/> 
+            <div class="card shadow-sm mx-3">
                 <div class="card-body text-center" id="receiptCard" data-visit-id="@Model.Id" data-checkedout="@(isCheckedOut ? "true" : "false")">
                     <div class="mb-3">
                         @if (isCheckedOut) { <span class="badge-success">✅ Uscita registrata</span> }
@@ -21,18 +22,29 @@
                     <div class="muted-small mb-3">@((isCheckedOut) ? "Il tuo check‑out è stato registrato correttamente." : "Il tuo check‑in è stato registrato correttamente.")</div>
 
                     <div class="text-start mx-auto" style="max-width:420px;">
-                        <dl class="row justify-content-center mx-auto">
-                            <dt class="col-3 muted-small object-fit-scale px-0">Codice visita</dt>
-                            <dd class="col-2 px-0 fw-bold" id="shortCode">@shortCode</dd>
-                        </dl>
+                        <div class="d-flex justify-content-center mx-auto gap-3 align-items-center">
+                            <dt class="muted-small object-fit-scale px-0">Codice visita</dt>
+                            <dd class="p-0 m-0 fw-bold" id="shortCode">@shortCode</dd>
+                        </div>
+                    </div>
+
+                    <!-- Bottone per scaricare la ricevuta -->
+                    <div class="mt-3">
+                        <button id="downloadReceiptBtn" class="btn btn-primary" aria-label="Scarica ricevuta">Scarica ricevuta</button>
                     </div>
                 </div>
             </div>
+
+            <!-- Riquadro con le info inserite (popolato da js) -->
+            <div id="visitInfoBox" class="visit-info-box mt-3 mx-3 p-3 text-start d-none" aria-live="polite">
+            <!-- populato dinamicamente -->
+            </div>
+
+            <p class="py-4 m-0 text-secondary">Ora puoi chiudere la pagina, <br/> la registrazione è completa</p>
         </div>
     </div>
 </div>
 
-@* Download ricevuta come immagine *@
+@* Download html2canvas + script che gestisce localStorage, fetch e download *@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-@* Local storage logic *@
 <script src="@Url.Content("~/js/summary.js")"></script>
