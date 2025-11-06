@@ -7,11 +7,11 @@
 <link rel="stylesheet" href="@Url.Content("/css/visitor.css")" />
 
 
-<div class="container-fluid py-4">
+<div class="container-fluid form-data pb-4">
     <div class="d-flex align-items-start gap-3 mb-3">
         <div>
-            <h2 class="h4 mb-1 fw-bold">⏫ Check-in</h2>
-            <div class="text-muted small">Compila i dati e conferma l'ingresso</div>
+            <h2 class="h3 mb-1 fw-">Check-in</h2>
+            <div class="text-muted small">Compila il form con i dati richiesti e conferma l'ingresso.</div>
         </div>
     </div>
 
@@ -21,9 +21,9 @@
                 <div class="card-body">
                     <form method="post" id="visitorForm">
                         <input type="hidden" asp-for="QrKey" />
-                        <div class="mb-3 text-end">
+                        <div class="mb-3 text-center">
                             @if (!string.IsNullOrEmpty(Model?.QrKey)) {
-                                <div class="qr-key-badge">@Model.QrKey</div>
+                                <div class="qr-key-badge text-capitalize">@Model.QrKey</div>
                             } else {
                                 <div class="muted-small mb-2">QR non rilevato</div>
                             }
@@ -32,30 +32,31 @@
                         <h3 class="h5 mb-3 fw-semibold">Dati visitatore</h3>
 
                         <div class="mb-3">
-                            <label class="form-label">Nome (*)</label>
+                            <label class="form-label">Nome</label>
                             <input asp-for="FirstName" class="form-control" required />
                             <div class="invalid-feedback" id="err-firstName">Il nome è obbligatorio.</div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Cognome (*)</label>
+                            <label class="form-label">Cognome</label>
                             <input asp-for="LastName" class="form-control" required />
                             <div class="invalid-feedback" id="err-lastName">Il cognome è obbligatorio.</div>
                         </div>
                         <div class="mb-3">
-                            <!-- opzionale -->
                             <label class="form-label">Email</label>
-                            <input asp-for="Email" class="form-control" />
+                            <input asp-for="Email" class="form-control" required />
                         </div>
 
                         <div class="d-flex gap-2 mt-3">
-                            <button type="submit" class="btn btn-success flex-grow-1 btn-lg">Conferma ingresso</button>
-                            <a href="/" class="btn btn-outline-secondary btn-sm" style="border-radius:10px; padding:.55rem .75rem;">Annulla</a>
+                            <button type="submit" class="btn btn-primary flex-grow-1 btn-lg">Entra</button>
+                            <a href="http://192.168.178.131:5178/qr/preview" class="btn btn-outline-secondary btn-sm" style="border-radius:10px; padding:.75rem .75rem;">Indietro</a>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-        <div class="text-muted small mt-3">Nota: i dati saranno registrati nel sistema.</div>
+        <div class="text-muted small mt-3 text-center pt-3">
+            <p>Informativa sulla privacy<br/>I dati saranno trattati e salvati nel sistema</p>
+        </div>
     </div>
 </div>
 
