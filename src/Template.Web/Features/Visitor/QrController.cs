@@ -3,6 +3,7 @@ using QRCoder;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Runtime.Versioning;
 
 namespace Template.Web.Features.Visitor
 {
@@ -11,6 +12,7 @@ namespace Template.Web.Features.Visitor
     {
         // GET /qr/generate?key=demo-qr
         [HttpGet("generate")]
+        [SupportedOSPlatform("windows")] // <-- indica che questo metodo usa API supportate solo su Windows (risolve CA1416)
         public virtual IActionResult Generate(string key, string baseUrl = null, bool debug = false)
         {
             if (string.IsNullOrWhiteSpace(key)) return BadRequest("Missing key");
