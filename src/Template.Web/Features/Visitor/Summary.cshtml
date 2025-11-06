@@ -10,7 +10,8 @@
 <div class="container-fluid py-0">
     <div class="row justify-content-center">
         <div class="col-12 col-sm-10 col-md-8 col-lg-6 text-center">
-            <img class="pb-4" src="~/images/check.png" width="120"/> 
+            @if (!isCheckedOut) {<img class="pb-4" src="~/images/check.png" width="120"/>}
+            @if (isCheckedOut) {<img class="pb-4" src="~/images/wave.png" width="120"/>}
             <div class="card shadow-sm mx-3">
                 <div class="card-body text-center" id="receiptCard" data-visit-id="@Model.Id" data-checkedout="@(isCheckedOut ? "true" : "false")">
                     <div class="mb-3">
@@ -19,28 +20,27 @@
                     </div>
 
                     <h2 class="h4 fw-bold mb-1">@((isCheckedOut) ? "Arrivederci!" : "Grazie!")</h2>
-                    <div class="muted-small mb-3">@((isCheckedOut) ? "Il tuo check‑out è stato registrato correttamente." : "Il tuo check‑in è stato registrato correttamente.")</div>
+                    <div class="muted-small mb-3">@((isCheckedOut) ? "Il tuo check‑out è stato registrato correttamente" : "Il tuo check‑in è stato registrato correttamente")</div>
 
                     <div class="text-start mx-auto" style="max-width:420px;">
                         <div class="d-flex justify-content-center mx-auto gap-3 align-items-center">
-                            <dt class="muted-small object-fit-scale px-0">Codice visita</dt>
-                            <dd class="p-0 m-0 fw-bold" id="shortCode">@shortCode</dd>
+                            @if (!isCheckedOut) {<dt class="muted-small object-fit-scale px-0">Codice visita</dt>
+                            <dd class="p-0 m-0 fw-bold" id="shortCode">@shortCode</dd>}
                         </div>
                     </div>
 
                     <!-- Bottone per scaricare la ricevuta -->
                     <div class="mt-3">
-                        <button id="downloadReceiptBtn" class="btn btn-primary" aria-label="Scarica ricevuta">Scarica ricevuta</button>
+                        @if (!isCheckedOut) {<button id="downloadReceiptBtn" class="btn btn-primary" aria-label="Scarica ricevuta">Scarica ricevuta</button>}
                     </div>
                 </div>
             </div>
 
             <!-- Riquadro con le info inserite (popolato da js) -->
-            <div id="visitInfoBox" class="visit-info-box mt-3 mx-3 p-3 text-start d-none" aria-live="polite">
-            <!-- populato dinamicamente -->
-            </div>
+            <div id="visitInfoBox" class="visit-info-box mt-3 mx-3 p-3 text-start d-none" aria-live="polite"></div>
 
-            <p class="py-4 m-0 text-secondary">Ora puoi chiudere la pagina, <br/> la registrazione è completa</p>
+            @* <p class="py-4 m-0 text-secondary">Ora puoi chiudere la pagina, <br/> la registrazione è completa</p> *@
+            <p class="py-4 m-0 text-secondary text-wrap">@((isCheckedOut) ? "Ora puoi chiudere la pagina" : "Ora puoi chiudere la pagina, la registrazione è completa")</p>
         </div>
     </div>
 </div>

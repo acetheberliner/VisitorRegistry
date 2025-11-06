@@ -1,6 +1,4 @@
-// Mostra i dettagli della visita e abilita il download dell'immagine della ricevuta.
 (function () {
-    // helper base path (usa APP_BASE se presente)
     function basePath() {
         try { return (typeof APP_BASE !== 'undefined' && APP_BASE) ? APP_BASE.replace(/\/?$/, '/') : '/'; }
         catch (e) { return '/'; }
@@ -10,7 +8,7 @@
         try { return new Date(iso).toLocaleString(); } catch { return iso || '-'; }
     }
 
-    // Popola il riquadro con i dettagli della visita (chiamata API)
+    // Riquadro dettagli
     (function populateVisitInfo() {
         try {
             var receipt = document.getElementById('receiptCard');
@@ -32,7 +30,7 @@
                     html += '<div class="line"><strong>Nome:</strong> ' + (v.FirstName || v.firstName || '-') + '</div>';
                     html += '<div class="line"><strong>Cognome:</strong> ' + (v.LastName || v.lastName || '-') + '</div>';
                     html += '<div class="line"><strong>Email:</strong> ' + (v.Email || v.email || '-') + '</div>';
-                    html += '<div class="line"><strong>Entrata:</strong> ' + formatDateIsoToLocal(v.CheckInTime || v.checkInTime) + '</div>';
+                    html += '<div class="line"><strong>Ingresso:</strong> ' + formatDateIsoToLocal(v.CheckInTime || v.checkInTime) + '</div>';
                     infoBox.innerHTML = html;
                     infoBox.classList.remove('d-none');
                 })
@@ -40,7 +38,7 @@
         } catch (e) { /* ignore */ }
     })();
 
-    // Gestione download ricevuta: cattura #receiptCard e scarica PNG. Disabilita scroll temporaneamente.
+    // Gestione download ricevuta
     (function attachDownload() {
         var btn = document.getElementById('downloadReceiptBtn');
         var card = document.getElementById('receiptCard');
@@ -50,7 +48,7 @@
             var origDisplay = btn.style.display;
             btn.style.display = 'none';
 
-            // disabilita scroll temporaneamente
+            // disabilita scroll pagina
             var origHtmlOverflow = document.documentElement.style.overflow;
             var origBodyOverflow = document.body.style.overflow;
             document.documentElement.style.overflow = 'hidden';
@@ -84,7 +82,7 @@
     })();
 })();
 
-// Download ricevuta come immagine (usa html2canvas caricato via CDN)
+// Download ricevuta come immagine
 (function () {
     var btn = document.getElementById('downloadReceiptBtn');
     if (!btn) return;
@@ -118,7 +116,7 @@
     });
 })();
 
-// Salvataggio/rimozione openVisitId (GUID) in localStorage per abilitare checkout automatico
+// Salvataggio/rimozione openVisitId in localStorage per abilitare checkout automatico
 (function () {
     try {
         var receipt = document.getElementById('receiptCard');
