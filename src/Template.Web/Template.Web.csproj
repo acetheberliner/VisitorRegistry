@@ -10,7 +10,7 @@
 		<PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
-		<PackageReference Include="QRCoder" Version="1.5.0" />
+		<PackageReference Include="QRCoder" Version="1.7.0" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="SG4MVC" Version="0.9.4-beta" />
 	</ItemGroup>
