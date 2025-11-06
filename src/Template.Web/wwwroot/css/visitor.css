@@ -49,6 +49,12 @@ body {
     margin-bottom:.5rem;
 }
 
+.btn-onit {
+    background-color: #e94a26e1;
+    color: #ffffff;
+    border: none;
+}
+
 .invalid-feedback { color: #dc3545; font-size: .85rem; display: none; margin-top: 6px; }
 .is-invalid { border-color: #dc3545 !important; box-shadow: none !important; }
 
