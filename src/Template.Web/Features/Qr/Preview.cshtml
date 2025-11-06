@@ -20,15 +20,15 @@
 }
 <link rel="stylesheet" href="@Url.Content("/css/preview.css")" />
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-0">
     <div class="d-flex align-items-center mb-3">
         <div>
-            <h2 class="h4 mb-0 fw-bold">🌐 QR Manager</h2>
-            <div class="text-muted small">Anteprima e azioni rapide per i codici QR</div>
+            <h2 class="h4 mb-0">QR Manager</h2>
+            <div class="text-muted small">Archivio codici QR della struttura</div>
         </div>
     </div>
 
-    <div class="row g-3">
+    <div class="row g-3 mb-3">
         @foreach(var k in keys)
         {
             var imgUrl = $"/qr/generate?key={k}";
@@ -36,18 +36,16 @@
             <div class="col-12 col-sm-6 col-md-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body d-flex flex-column align-items-center text-center">
-                        <div class="fw-semibold mb-1 text-truncate" style="max-width:100%;">@k</div>
+                        <div class="fw-semibold mb-1 text-capitalize" style="max-width:100%;">@k</div>
                         <div class="qr-image-wrap mb-3">
                             <a href="@imgUrl" target="_blank" title="Open image">
                                 <img src="@imgUrl" alt="QR @k" class="img-fluid qr-image" />
                             </a>
                         </div>
-                        <div class="mb-2"><a href="#" class="small text-decoration-none debug-link" data-url="@dbgUrl">🔍 Apri</a></div>
                         <div class="w-100 mt-auto">
                             <div class="btn-group w-100" role="group" aria-label="QR actions">
-                                <a class="btn btn-outline-primary btn-sm" href="@imgUrl" target="_blank">Immagine</a>
-                                <button type="button" class="btn btn-outline-secondary btn-sm copy-link" data-url="@imgUrl">Copia link</button>
-                                <a class="btn btn-success btn-sm" href="@imgUrl" download="@($"{k}.png")">Scarica</a>
+                                <a class="btn btn-onit btn-sm debug-link" href="#" data-url="@dbgUrl">Apri</a>
+                                <a class="btn btn-outline-primary btn-sm" href="@imgUrl" download="@($"{k}.png")">Scarica</a>
                             </div>
                         </div>
                     </div>

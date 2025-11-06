@@ -20,6 +20,12 @@ body {
 }
 .card .card-body { border-radius: 10px; }
 
+.btn-onit {
+    background-color: #e94a26ee;
+    color: #ffffff;
+    border: none;
+}
+
 .qr-image-wrap {
     width: 220px;
     height: 220px;
