@@ -50,7 +50,8 @@ namespace Template.Web.Features.Visitor
                 _logger.LogWarning(ex, "Errore durante il tentativo di checkout automatico");
             }
 
-            _logger.LogInformation("Mostra form check-in per QR={q}", q);
+            _logger.LogInformation("QR Selected={q}", q);
+            _logger.LogInformation(new string('-', 85));
             return View(new VisitorFormModel { QrKey = q });
         }
 
@@ -60,7 +61,9 @@ namespace Template.Web.Features.Visitor
         {
             if (!ModelState.IsValid) { _logger.LogInformation("POST /Visitor model non valido"); return View(model); }
 
-            _logger.LogInformation("Ricevuto check-in: {first} {last} ({email}) QR={qr}", model.FirstName, model.LastName, model.Email, model.QrKey);
+            // Logazione compatta dell'inserimento
+            _logger.LogInformation("inserita entry [Nome={first}, Cognome={last}, Email={email}]", model.FirstName, model.LastName, model.Email);
+            _logger.LogInformation(new string('-', 91));
 
             var result = await _sharedService.Handle(new AddOrUpdateVisitCommand
             {

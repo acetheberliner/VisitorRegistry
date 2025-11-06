@@ -230,13 +230,20 @@ namespace Template.Web.Services
         }
 
         // Cancellazione
-        public async Task<bool> DeleteAsync(Guid id)
+        public async Task<VisitDto> DeleteAsync(Guid id)
         {
             var v = await _db.VisitRecords.FindAsync(id);
-            if (v == null) return false;
+            if (v == null) return null;
+
+            var dto = MapToDto(v);
+
             _db.VisitRecords.Remove(v);
             await _db.SaveChangesAsync();
-            return true;
+
+            // Event (best-effort): notify clients that a visit was removed/updated
+            try { _publisher?.Publish(new Template.Web.SignalR.Hubs.Events.UpdateVisitEvent { IdGroup = Guid.Empty, VisitDto = dto }); } catch { }
+
+            return dto;
         }
 
         // Creazione manuale

@@ -35,7 +35,8 @@ namespace Template.Web.Api
 		public virtual async Task<IActionResult> Get([FromQuery] string q = null, [FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] bool presentOnly = false, [FromQuery] int page = 1, [FromQuery] int pageSize = 100)
 		{
 			var dto = await _visitService.GetVisitsAsync(q, start, end, presentOnly, page, pageSize);
-			_logger?.LogInformation("/api/visits returning {Count} items (q={q}, start={start}, end={end}, presentOnly={presentOnly})", dto.Count, q, start, end, presentOnly);
+			_logger?.LogInformation("[/api/visits] Returns {Count} entries", dto.Count);
+			_logger?.LogInformation(new string('-', 85));
 			return Ok(dto);
 		}
 
@@ -76,8 +77,13 @@ namespace Template.Web.Api
 		[AllowAnonymous]
 		public virtual async Task<IActionResult> Delete([FromRoute] Guid id)
 		{
-			var ok = await _visitService.DeleteAsync(id);
-			if (!ok) return NotFound();
+			// ora DeleteAsync restituisce il VisitDto cancellato oppure null
+			var deleted = await _visitService.DeleteAsync(id);
+			if (deleted == null) return NotFound();
+
+			_logger?.LogInformation("Deleted entry [Nome={FirstName}, Cognome={LastName}, Email={Email}]", deleted.FirstName, deleted.LastName, deleted.Email);
+			_logger?.LogInformation(new string('-', 85));
+
 			return NoContent();
 		}
 
@@ -88,7 +94,22 @@ namespace Template.Web.Api
 		{
 			if (model == null) return BadRequest("Payload mancante");
 			var result = await _visitService.CreateAsync(model);
-			if (result.IsConflict) return Conflict(new { message = result.Message, visit = result.ExistingVisit });
+			if (result.IsConflict) 
+			{
+				// Log compatto per conflitto
+				_logger?.LogInformation("Create conflitto: {Message}", result.Message);
+				_logger?.LogInformation(new string('-', 91));
+				return Conflict(new { message = result.Message, visit = result.ExistingVisit });
+			}
+
+			// Log compatto per inserimento
+			var v = result.Visit;
+			if (v != null)
+			{
+				_logger?.LogInformation("Created entry [Nome={FirstName}, Cognome={LastName}, Email={Email}]", v.FirstName, v.LastName, v.Email);
+				_logger?.LogInformation(new string('-', 85));
+			}
+
 			return CreatedAtAction(nameof(Get), new { id = result.Visit.Id }, result.Visit);
 		}
 		
