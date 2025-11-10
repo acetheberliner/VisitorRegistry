@@ -31,6 +31,13 @@ body {
 #visits tbody tr:hover { background: rgba(99,102,241,0.03); }
 tr.selected { background: linear-gradient(90deg, rgba(99,102,241,0.08), rgba(255,255,255,0)); }
 
+#visits tbody tr.selected {
+  border: 3px solid var(--logo-accent);
+  border-radius: 100px;
+  background: #c93d2a62;
+}
+
+
 .table thead th {
     background: transparent;
     color: #374151;
