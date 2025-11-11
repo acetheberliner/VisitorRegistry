@@ -121,19 +121,48 @@ async function loadAndRender() {
   try {
     showError(null);
     const qs = buildQueryFromForm();
-    const arr = await api.fetchVisits({ q: document.getElementById('filterSearch')?.value?.trim(), start: document.getElementById('filterStart')?.value, end: document.getElementById('filterEnd')?.value, presentOnly: document.getElementById('filterPresent')?.checked });
+    const base = (typeof APP_BASE !== 'undefined' && APP_BASE) ? APP_BASE.replace(/\/?$/, '/') : '/';
+    const url = base + 'api/visits' + qs;
+
+    console.debug('[reception] fetch visits ->', url);
+    const res = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status + ' ' + (res.statusText || ''));
+    }
+    let arr = await res.json();
+
+    const presentOnly = !!document.getElementById('filterPresent')?.checked;
+    if (presentOnly) {
+      const before = Array.isArray(arr) ? arr.length : 0;
+      arr = (Array.isArray(arr) ? arr.filter(v => {
+        // supporta campi CheckOutTime o checkOutTime
+        return !(v.CheckOutTime || v.checkOutTime);
+      }) : []);
+      console.debug('[reception] filtro "Solo presenti" attivo, totale prima=', before, 'dopo=', arr.length);
+    } else {
+      if (Array.isArray(arr)) console.debug('[reception] ricevuti', arr.length, 'elementi');
+    }
+
+    // preview log compatto
+    if (Array.isArray(arr)) {
+      try { console.debug('[reception] anteprima elementi:', arr.slice(0,10).map(v => ({ Id: v.Id || v.id, ShortCode: v.ShortCode || v.shortCode, CheckOutTime: v.CheckOutTime || v.checkOutTime }))); } catch (e) {}
+    } else {
+      console.debug('[reception] risposta non array', arr);
+    }
+
     const tbody = document.querySelector('#visits tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    if (Array.isArray(arr) && arr.length === 0) {
-      // ok: empty result
+    if (!Array.isArray(arr) || arr.length === 0) {
+      // mostra vuoto (nessuna row)
+    } else {
+      for (const it of arr) render.renderRow(it);
     }
-    for (const it of arr) render.renderRow(it);
     render.updateStats();
     showError(null);
   } catch (e) {
+    // mantiene la tabella corrente per evitare che scompaia
     console.error('loadAndRender failed', e);
     showError('Errore caricamento visite: ' + (e.message || e));
-    // keep current table to avoid "disappear"
   }
 }
