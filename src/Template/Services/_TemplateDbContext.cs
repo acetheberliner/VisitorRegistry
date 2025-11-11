@@ -1,5 +1,4 @@
-﻿using Template.Infrastructure;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Template.Services.Shared;
 
 namespace Template.Services

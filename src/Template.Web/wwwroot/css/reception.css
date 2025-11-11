@@ -106,3 +106,7 @@ width: 95%;
   color: #fff;
   box-shadow: 0 6px 14px rgba(201,61,42,0.12);
 }
+
+.mt-12 {
+  margin-top: 12rem !important;
+}

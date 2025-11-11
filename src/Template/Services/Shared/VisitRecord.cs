@@ -10,7 +10,7 @@ namespace Template.Services.Shared
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; set; }
 
-        // A key representing the QR code scanned (could be the same for all entries)
+        // Univoco per visitatore
         public string QrKey { get; set; }
 
         public string Email { get; set; }
@@ -23,6 +23,7 @@ namespace Template.Services.Shared
         [NotMapped]
         public bool IsPresent => CheckOutTime == null && CheckInTime != default;
 
+        // Genera un codice breve di 5 caratteri basato su GUID
         public static string GenerateShortCode(Guid id)
         {
             const string alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";

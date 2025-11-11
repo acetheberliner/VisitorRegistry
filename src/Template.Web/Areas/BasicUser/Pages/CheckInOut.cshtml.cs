@@ -17,7 +17,7 @@ namespace Template.Web.Areas.BasicUser.Pages
 
         public string Message { get; set; }
 
-        // ⚠️ Simulazione DB in-memory condiviso
+        // Simulazione DB in-memory condiviso
         private static ConcurrentDictionary<string, bool> CheckInStatus = new();
 
         public void OnGet()

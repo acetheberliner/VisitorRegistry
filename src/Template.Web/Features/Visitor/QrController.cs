@@ -30,7 +30,7 @@ namespace Template.Web.Features.Visitor
             using (var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q))
             using (var qrCode = new QRCode(qrData))
             {
-                // Colori brandizzati: dark = #47474b, light = white (consigliato per buona scansione)
+                // Colore brandizzato onit: dark = #47474b
                 var dark = ColorTranslator.FromHtml("#47474b");
                 var light = Color.White;
 
