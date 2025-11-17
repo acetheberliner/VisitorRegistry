@@ -16,7 +16,7 @@ Per una corretta e semplice installazione ed esecuzione del progetto, si richied
    nella directory "/src/Template.Web"
 
 5. Cambiare "applicationUrl": "http://192.168.178.131:5178, inserendo l'indirizzo IP del proprio pc
-   (NB.: non è stato impiegato localhost in quanto altrimenti la scansione dei QR con inserimento dati tramite form, non sarebbe stata possibile essendo devices esterni al pc in cui si esegue il progetto. in produzione l’app sarebbe dietro un reverse proxy e con     dns/IP statico)
+   (NB.: non è stato impiegato localhost in quanto altrimenti la scansione dei QR con inserimento dati tramite form, non sarebbe stata possibile essendo devices esterni al pc in cui si esegue il progetto. in produzione l’app sarebbe dietro un reverse proxy e con     dns/IP statico)<br/>
    Comando per:
    - Windows:
      ```ipconfig /all```
