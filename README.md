@@ -5,6 +5,24 @@
 
 # VisitorRegistry
 
+# Istruzioni d'uso
+
+Per una corretta e semplice installazione ed esecuzione del progetto, si richiede di:
+1. Clonare la repo e pullare eventuali updates
+   ```git pull```
+   
+3. Installare i node modules:
+   ```npm install```
+   nella directory "/src/Template.Web"
+
+5. Cambiare "applicationUrl": "http://192.168.178.131:5178, inserendo l'indirizzo IP del proprio pc
+   (NB.: non è stato impiegato localhost in quanto altrimenti la scansione dei QR con inserimento dati tramite form, non sarebbe stata possibile essendo devices esterni al pc in cui si esegue il progetto. in produzione l’app sarebbe dietro un reverse proxy e con     dns/IP statico)
+   Comando per:
+   - Windows:
+     ```ipconfig /all```
+   - Mac:
+     ```ipconfig getifaddr en0```
+
 # Gallery
 <img width="1875" height="917" alt="home" src="https://github.com/user-attachments/assets/009fd505-2bc8-4c20-beb5-25729a932dc4" />
 >Home reception
